@@ -35,3 +35,6 @@ out/
 
 # Supabase
 supabase/.temp
+
+# Agent
+petflow-agent/

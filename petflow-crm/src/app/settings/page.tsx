@@ -41,11 +41,6 @@ export default function SettingsPage() {
   const [waSaving, setWaSaving] = useState(false)
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  useEffect(() => {
-    fetchSettings()
-    loadWhatsAppConfig()
-  }, [])
-
   const fetchSettings = async () => {
     const { data } = await supabase.from('settings').select('*').eq('id', 1).single()
     if (data) setSettings(data as Settings)
@@ -69,6 +64,11 @@ export default function SettingsPage() {
       }
     }
   }
+
+  useEffect(() => {
+    fetchSettings()
+    loadWhatsAppConfig()
+  }, [])
 
   const checkWhatsAppStatus = async (url?: string, key?: string, instance?: string) => {
     const apiUrl = url || waConfig.evolution_api_url

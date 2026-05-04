@@ -1,0 +1,199 @@
+﻿
+> petflow-crm@0.1.0 lint
+> eslint
+
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\appointments\page.tsx
+  38:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\appointments\page.tsx:38:21
+  36 |   }, [view])
+  37 |
+> 38 |   useEffect(() => { fetchAppointments() }, [fetchAppointments])
+     |                     ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  39 |
+  40 |   const updateStatus = async (id: string, newStatus: AppointmentStatus) => {
+  41 |     await supabase.from('appointments').update({ status: newStatus }).eq('id', id)  react-hooks/set-state-in-effect
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\clients\page.tsx
+  35:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\clients\page.tsx:35:21
+  33 |   }, [])
+  34 |
+> 35 |   useEffect(() => { fetchClients() }, [fetchClients])
+     |                     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |
+  37 |   useEffect(() => {
+  38 |     if (!search) { setFiltered(clients); return }                                                  react-hooks/set-state-in-effect
+  38:20  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\clients\page.tsx:38:20
+  36 |
+  37 |   useEffect(() => {
+> 38 |     if (!search) { setFiltered(clients); return }
+     |                    ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  39 |     const q = search.toLowerCase()
+  40 |     setFiltered(clients.filter(c =>
+  41 |       c.name.toLowerCase().includes(q) ||  react-hooks/set-state-in-effect
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\crm\page.tsx
+  36:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\crm\page.tsx:36:5
+  34 |
+  35 |   useEffect(() => {
+> 36 |     fetchAppointments()
+     |     ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  37 |   }, [fetchAppointments])
+  38 |
+  39 |   const handleMove = async (id: string, newStatus: AppointmentStatus) => {  react-hooks/set-state-in-effect
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\dashboard\page.tsx
+  120:68  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\layout.tsx
+  20:9  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\pets\page.tsx
+  33:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\pets\page.tsx:33:21
+  31 |   }, [])
+  32 |
+> 33 |   useEffect(() => { fetchPets() }, [fetchPets])
+     |                     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  34 |
+  35 |   useEffect(() => {
+  36 |     let result = [...pets]                                                                                                                                            react-hooks/set-state-in-effect
+  49:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\pets\page.tsx:49:5
+  47 |       (p.temperament_notes || '').toLowerCase().includes(temperamentFilter.toLowerCase())
+  48 |     )
+> 49 |     setFiltered(result)
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  50 |   }, [pets, search, speciesFilter, temperamentFilter])
+  51 |
+  52 |   const temperamentOptions = ['all', 'Friendly', 'Calm', 'Anxious', 'Aggressive']  react-hooks/set-state-in-effect
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\services\page.tsx
+   27:21  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\services\page.tsx:27:21
+  25 |   }, [])
+  26 |
+> 27 |   useEffect(() => { fetchServices() }, [fetchServices])
+     |                     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |
+  29 |   const deleteService = async (id: string) => {
+  30 |     if (!confirm('Are you sure you want to delete this service?')) return  react-hooks/set-state-in-effect
+  101:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @next/next/no-img-element
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\settings\page.tsx
+   45:5   error    Error: Cannot access variable before it is declared
+
+`fetchSettings` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\settings\page.tsx:45:5
+  43 |
+  44 |   useEffect(() => {
+> 45 |     fetchSettings()
+     |     ^^^^^^^^^^^^^ `fetchSettings` accessed before it is declared
+  46 |     loadWhatsAppConfig()
+  47 |   }, [])
+  48 |
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\settings\page.tsx:49:3
+  47 |   }, [])
+  48 |
+> 49 |   const fetchSettings = async () => {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 50 |     const { data } = await supabase.from('settings').select('*').eq('id', 1).single()
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 51 |     if (data) setSettings(data as Settings)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 52 |     setLoading(false)
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 53 |   }
+     | ^^^^ `fetchSettings` is declared here
+  54 |
+  55 |   const loadWhatsAppConfig = async () => {
+  56 |     const { data } = await supabase.from('whatsapp_config').select('*').eq('id', 1).single()                                                              react-hooks/immutability
+   46:5   error    Error: Cannot access variable before it is declared
+
+`loadWhatsAppConfig` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\settings\page.tsx:46:5
+  44 |   useEffect(() => {
+  45 |     fetchSettings()
+> 46 |     loadWhatsAppConfig()
+     |     ^^^^^^^^^^^^^^^^^^ `loadWhatsAppConfig` accessed before it is declared
+  47 |   }, [])
+  48 |
+  49 |   const fetchSettings = async () => {
+
+C:\Users\jasha\OneDrive\Desktop\Pet flow\petflow-crm\src\app\settings\page.tsx:55:3
+  53 |   }
+  54 |
+> 55 |   const loadWhatsAppConfig = async () => {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 56 |     const { data } = await supabase.from('whatsapp_config').select('*').eq('id', 1).single()
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 57 |     if (data) {
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 70 |     }
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 71 |   }
+     | ^^^^ `loadWhatsAppConfig` is declared here
+  72 |
+  73 |   const checkWhatsAppStatus = async (url?: string, key?: string, instance?: string) => {
+  74 |     const apiUrl = url || waConfig.evolution_api_url  react-hooks/immutability
+   47:6   warning  React Hook useEffect has a missing dependency: 'loadWhatsAppConfig'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/exhaustive-deps
+  668:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @next/next/no-img-element
+
+Γ£û 14 problems (10 errors, 4 warnings)
+
