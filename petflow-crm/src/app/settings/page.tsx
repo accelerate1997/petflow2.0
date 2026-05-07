@@ -46,7 +46,23 @@ export default function SettingsPage() {
     try {
       const record = await pb.collection('settings').getFirstListItem('')
       if (record) setSettings(record as unknown as Settings)
-    } catch (error) {
+    } catch (error: any) {
+      // If 404, it just means no record exists yet, which is fine
+      if (error.status === 404) {
+        setSettings({
+          id: '',
+          spa_name: 'Pet Flow Spa',
+          spa_whatsapp: '',
+          spa_email: '',
+          spa_address: '',
+          currency_symbol: '₹',
+          business_hours: days.reduce((acc, day) => ({
+            ...acc,
+            [day.id]: { open: '09:00', close: '18:00', closed: false }
+          }), {}),
+          updated_at: new Date().toISOString()
+        } as Settings)
+      }
       console.error('Error fetching settings:', error)
     }
     setLoading(false)
@@ -256,7 +272,6 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const record = await pb.collection('settings').getFirstListItem('')
       const data = {
         spa_name: settings.spa_name,
         spa_whatsapp: settings.spa_whatsapp,
@@ -266,6 +281,13 @@ export default function SettingsPage() {
         currency_symbol: settings.currency_symbol,
       };
 
+      let record;
+      try {
+        record = await pb.collection('settings').getFirstListItem('')
+      } catch (e) {
+        // Not found
+      }
+
       if (record) {
         await pb.collection('settings').update(record.id, data)
       } else {
@@ -274,6 +296,7 @@ export default function SettingsPage() {
 
       setMessage({ type: 'success', text: 'Settings saved successfully!' })
       setTimeout(() => setMessage(null), 3000)
+      fetchSettings() // Refresh to get the real ID
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Error saving settings' })
     }
@@ -281,37 +304,12 @@ export default function SettingsPage() {
   }
 
 
+
   const toggleShowKey = (field: string) => {
     setShowKeys(prev => ({ ...prev, [field]: !prev[field] }))
   }
 
   if (loading) return <div className="p-10 animate-pulse text-gray-400">Loading settings...</div>
-
-  if (!settings) return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1000 }}>
-      <div className="card p-12 text-center flex flex-col items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-2">
-          <AlertCircle size={32} />
-        </div>
-        <h2 className="text-xl font-700">Database Setup Required</h2>
-        <p className="text-gray-500 max-w-md mx-auto">
-          It looks like the <code>settings</code> collection hasn&apos;t been initialized in your PocketBase instance yet.
-        </p>
-        <div className="bg-gray-50 p-4 rounded-xl text-left text-sm font-mono border border-gray-100 mt-2">
-          <p className="color-sage-dark font-600 mb-2"># Instructions:</p>
-          <ol className="list-decimal pl-4 space-y-1 text-gray-600">
-            <li>Open your PocketBase Admin UI</li>
-            <li>Create a collection named <code>settings</code></li>
-            <li>Add fields for <code>spa_name</code>, <code>spa_whatsapp</code>, etc.</li>
-            <li>Create at least one record.</li>
-          </ol>
-        </div>
-        <button className="btn-sage mt-4" onClick={fetchSettings}>
-          Refresh Page
-        </button>
-      </div>
-    </div>
-  )
 
 
   return (

@@ -90,7 +90,7 @@ export interface BusinessHours {
 }
 
 export interface Settings {
-  id: number
+  id: string
   spa_name: string
   spa_whatsapp: string | null
   spa_email: string | null
