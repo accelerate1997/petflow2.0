@@ -5,7 +5,7 @@ import { Plus, Search, Phone, Mail, MapPin, PawPrint, Trash2, ChevronDown, Chevr
 import AddClientModal from '@/components/AddClientModal'
 import AddPetModal from '@/components/AddPetModal'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Client, Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
 
@@ -23,12 +23,23 @@ export default function ClientsPage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) { setLoading(false); return }
-    const { data } = await supabase
-      .from('clients')
-      .select('*, pets(*)')
-      .order('created_at', { ascending: false })
-    setClients((data || []) as ClientWithPets[])
+    if (!isPocketBaseConfigured) { setLoading(false); return }
+
+    try {
+      const records = await pb.collection('clients').getFullList({
+        sort: '-created',
+        expand: 'pets(owner_id)',
+      })
+      
+      const mapped = records.map(record => ({
+        ...record,
+        pets: record.expand?.['pets(owner_id)'] || []
+      })) as unknown as ClientWithPets[]
+
+      setClients(mapped)
+    } catch (error) {
+      console.error('Error fetching clients:', error)
+    }
     setLoading(false)
   }, [])
 
@@ -49,15 +60,20 @@ export default function ClientsPage() {
 
   const deleteClient = async (id: string) => {
     if (!confirm('Delete this client and all their pets?')) return
-    await supabase.from('clients').delete().eq('id', id)
-    fetchClients()
+    try {
+      await pb.collection('clients').delete(id)
+      fetchClients()
+    } catch (error) {
+      console.error('Error deleting client:', error)
+    }
   }
 
   const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1000 }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

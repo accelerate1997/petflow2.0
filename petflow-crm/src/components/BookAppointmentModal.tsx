@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Calendar, Search, User, PawPrint, Clock, IndianRupee } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb } from '@/lib/pocketbase'
 import type { Client, Pet, Service } from '@/types'
 
 interface Props {
@@ -28,21 +28,30 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.from('services').select('*').order('service_name').then(({ data }) => {
-      if (data) {
-        setServices(data as Service[])
-        if (data.length > 0) {
-          setForm(f => ({ ...f, service_type: data[0].service_name, price: data[0].price.toString() }))
-        }
+    pb.collection('services').getFullList({
+      sort: 'service_name',
+    }).then((records) => {
+      setServices(records as unknown as Service[])
+      if (records.length > 0) {
+        setForm(f => ({ ...f, service_type: records[0].service_name, price: records[0].price.toString() }))
       }
-    })
+    }).catch(err => console.error('Error fetching services:', err))
   }, [])
 
   useEffect(() => {
     if (search.length > 1) {
-      supabase.from('clients').select('*, pets(*)').ilike('name', `%${search}%`).limit(10).then(({ data }) => {
-        if (data) setClients(data as any)
-      })
+      pb.collection('clients').getList(1, 10, {
+        filter: `name ~ "${search}"`,
+        expand: 'pets(owner_id)'
+      }).then((result) => {
+        const mapped = result.items.map(record => ({
+          ...record,
+          pets: record.expand?.['pets(owner_id)'] || []
+        }))
+        setClients(mapped as any)
+      }).catch(err => console.error('Error searching clients:', err))
+    } else {
+      setClients([])
     }
   }, [search])
 
@@ -66,20 +75,22 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
     setLoading(true)
     setError('')
 
-    const { error: err } = await supabase.from('appointments').insert({
-      pet_id: form.pet_id,
-      service_type: form.service_type,
-      appointment_date: form.appointment_date,
-      appointment_time: form.appointment_time,
-      price: form.price ? parseFloat(form.price) : 0,
-      notes: form.notes || null,
-      status: 'Booked',
-    })
-
+    try {
+      await pb.collection('appointments').create({
+        pet_id: form.pet_id,
+        service_type: form.service_type,
+        appointment_date: form.appointment_date,
+        appointment_time: form.appointment_time,
+        price: form.price ? parseFloat(form.price) : 0,
+        notes: form.notes || null,
+        status: 'Booked',
+      })
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Error booking appointment')
+    }
     setLoading(false)
-    if (err) { setError(err.message); return }
-    onSuccess()
-    onClose()
   }
 
   return (

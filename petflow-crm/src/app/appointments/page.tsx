@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Calendar as CalendarIcon, Plus, Search, MapPin, Clock, MoreVertical, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Appointment, AppointmentStatus } from '@/types'
 import { statusStyles } from '@/types'
 
@@ -16,30 +16,51 @@ export default function AppointmentsPage() {
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) { setLoading(false); return }
+    if (!isPocketBaseConfigured) { setLoading(false); return }
 
     // Building the date range query
     const today = new Date().toISOString().split('T')[0]
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
     const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
 
-    let query = supabase.from('appointments').select('*, pets(*, clients(name))')
+    try {
+      let filter = ''
+      if (view === 'today') filter = `appointment_date ~ "${today}"`
+      else if (view === 'tomorrow') filter = `appointment_date ~ "${tomorrow}"`
+      else if (view === 'week') filter = `appointment_date >= "${today} 00:00:00" && appointment_date <= "${nextWeek} 23:59:59"`
 
-    if (view === 'today') query = query.eq('appointment_date', today)
-    if (view === 'tomorrow') query = query.eq('appointment_date', tomorrow)
-    if (view === 'week') query = query.gte('appointment_date', today).lte('appointment_date', nextWeek)
-    
-    const { data } = await query.order('appointment_date').order('appointment_time')
-    
-    setAppointments((data || []) as Appointment[])
+      const records = await pb.collection('appointments').getFullList({
+        filter,
+        sort: 'appointment_date,appointment_time',
+        expand: 'pet_id,pet_id.owner_id',
+      })
+      
+      const mapped = records.map(record => ({
+        ...record,
+        pets: record.expand?.pet_id ? {
+          ...record.expand.pet_id,
+          clients: record.expand.pet_id.expand?.owner_id ? {
+            name: record.expand.pet_id.expand.owner_id.name
+          } : undefined
+        } : undefined
+      })) as unknown as Appointment[]
+
+      setAppointments(mapped)
+    } catch (error) {
+      console.error('Error fetching appointments:', error)
+    }
     setLoading(false)
   }, [view])
 
   useEffect(() => { fetchAppointments() }, [fetchAppointments])
 
   const updateStatus = async (id: string, newStatus: AppointmentStatus) => {
-    await supabase.from('appointments').update({ status: newStatus }).eq('id', id)
-    fetchAppointments()
+    try {
+      await pb.collection('appointments').update(id, { status: newStatus })
+      fetchAppointments()
+    } catch (error) {
+      console.error('Error updating status:', error)
+    }
   }
 
   const formatCurrency = (n: number) =>
@@ -49,7 +70,8 @@ export default function AppointmentsPage() {
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1100 }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
+
       
       {/* Header */}
       <div className="flex items-center justify-between mb-8">

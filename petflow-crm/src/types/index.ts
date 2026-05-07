@@ -18,10 +18,16 @@ export interface Pet {
   weight: number | null
   temperament_notes: string | null
   medical_alerts: string | null
-  photo_url: string | null
+  photo: string | null
+  photo_url?: string | null
   owner_id: string
-  created_at: string
-  clients?: Client
+  created: string
+  collectionId: string
+  collectionName: string
+  expand?: {
+    owner_id: Client
+  }
+  clients?: { name: string }
 }
 
 export type Temperament = 'Friendly' | 'Calm' | 'Anxious' | 'Aggressive' | string

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, PawPrint, Upload } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb } from '@/lib/pocketbase'
 import type { Client } from '@/types'
 
 interface Props {
@@ -29,9 +29,12 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    supabase.from('clients').select('id, name').order('name').then(({ data }) => {
-      if (data) setClients(data as Client[])
-    })
+    pb.collection('clients').getFullList({
+      sort: 'name',
+      fields: 'id,name'
+    }).then((records) => {
+      setClients(records as unknown as Client[])
+    }).catch(err => console.error('Error fetching clients:', err))
   }, [])
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,37 +51,29 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
     setLoading(true)
     setError('')
 
-    let photo_url: string | null = null
-
-    // Upload photo if provided
-    if (photoFile) {
-      const ext = photoFile.name.split('.').pop()
-      const path = `pets/${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage
-        .from('pet-photos')
-        .upload(path, photoFile, { upsert: true })
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
-        photo_url = urlData.publicUrl
+    try {
+      const formData = new FormData()
+      formData.append('pet_name', form.pet_name.trim())
+      formData.append('species', form.species)
+      formData.append('breed', form.breed || '')
+      formData.append('weight', form.weight || '0')
+      formData.append('temperament_notes', form.temperament_notes || '')
+      formData.append('medical_alerts', form.medical_alerts || '')
+      formData.append('owner_id', form.owner_id)
+      
+      if (photoFile) {
+        formData.append('photo', photoFile)
       }
+
+      await pb.collection('pets').create(formData)
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Error saving pet')
     }
-
-    const { error: err } = await supabase.from('pets').insert({
-      pet_name: form.pet_name.trim(),
-      species: form.species,
-      breed: form.breed || null,
-      weight: form.weight ? parseFloat(form.weight) : null,
-      temperament_notes: form.temperament_notes || null,
-      medical_alerts: form.medical_alerts || null,
-      owner_id: form.owner_id,
-      photo_url,
-    })
-
     setLoading(false)
-    if (err) { setError(err.message); return }
-    onSuccess()
-    onClose()
   }
+
 
   const temperamentOptions = ['Friendly', 'Calm', 'Anxious', 'Aggressive']
 

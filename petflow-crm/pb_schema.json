@@ -1,0 +1,119 @@
+[
+  {
+    "name": "clients",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "name", "type": "text", "required": true },
+      { "name": "whatsapp_number", "type": "text" },
+      { "name": "email", "type": "email" },
+      { "name": "address", "type": "text" },
+      { "name": "total_spend", "type": "number" },
+      { "name": "join_date", "type": "date" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  },
+  {
+    "name": "pets",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "pet_name", "type": "text", "required": true },
+      { "name": "species", "type": "select", "options": { "values": ["dog", "cat", "other"] } },
+      { "name": "breed", "type": "text" },
+      { "name": "weight", "type": "number" },
+      { "name": "temperament_notes", "type": "text" },
+      { "name": "medical_alerts", "type": "text" },
+      { "name": "photo", "type": "file", "options": { "maxSelect": 1, "maxSize": 5242880, "mimeTypes": ["image/jpeg", "image/png", "image/svg+xml", "image/gif", "image/webp"] } },
+      { "name": "owner_id", "type": "relation", "required": true, "options": { "collectionId": "clients", "cascadeDelete": false, "maxSelect": 1 } }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  },
+  {
+    "name": "services",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "service_name", "type": "text", "required": true },
+      { "name": "pet_type", "type": "select", "options": { "values": ["dog", "cat", "other", "all"] } },
+      { "name": "description", "type": "text" },
+      { "name": "price", "type": "number", "required": true },
+      { "name": "thumbnail", "type": "text" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  },
+  {
+    "name": "appointments",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "pet_id", "type": "relation", "required": true, "options": { "collectionId": "pets", "cascadeDelete": false, "maxSelect": 1 } },
+      { "name": "service_type", "type": "text", "required": true },
+      { "name": "appointment_date", "type": "text", "required": true },
+      { "name": "appointment_time", "type": "text", "required": true },
+      { "name": "status", "type": "select", "options": { "values": ["Lead", "Booked", "CheckedIn", "InService", "Done", "CheckedOut", "Cancelled", "No-show"] } },
+      { "name": "price", "type": "number" },
+      { "name": "notes", "type": "text" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  },
+  {
+    "name": "settings",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "spa_name", "type": "text", "required": true },
+      { "name": "spa_whatsapp", "type": "text" },
+      { "name": "spa_email", "type": "email" },
+      { "name": "spa_address", "type": "text" },
+      { "name": "business_hours", "type": "json" },
+      { "name": "currency_symbol", "type": "text" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  },
+  {
+    "name": "whatsapp_config",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "evolution_api_url", "type": "text" },
+      { "name": "evolution_api_key", "type": "text" },
+      { "name": "instance_name", "type": "text" },
+      { "name": "openai_api_key", "type": "text" },
+      { "name": "agent_public_url", "type": "text" },
+      { "name": "booking_link", "type": "text" },
+      { "name": "spa_name", "type": "text" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "options": {}
+  }
+]

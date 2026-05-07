@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { PawPrint, Weight, AlertTriangle, X, User } from 'lucide-react'
 import type { Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
+import { pb } from '@/lib/pocketbase'
 
 const speciesEmoji: Record<string, string> = {
   dog: '🐕',
@@ -24,6 +25,9 @@ interface PetCardProps {
 export default function PetCard({ pet }: PetCardProps) {
   const [open, setOpen] = useState(false)
   const style = getTemperamentStyle(pet.temperament_notes)
+  const photoUrl = pet.photo 
+    ? pb.files.getUrl(pet as any, pet.photo)
+    : pet.photo_url
 
   return (
     <>
@@ -32,8 +36,8 @@ export default function PetCard({ pet }: PetCardProps) {
         <div
           style={{
             height: 160,
-            background: pet.photo_url
-              ? `url(${pet.photo_url}) center/cover no-repeat`
+            background: photoUrl
+              ? `url(${photoUrl}) center/cover no-repeat`
               : speciesGradient[pet.species] || speciesGradient.other,
             display: 'flex',
             alignItems: 'center',
@@ -41,7 +45,7 @@ export default function PetCard({ pet }: PetCardProps) {
             position: 'relative',
           }}
         >
-          {!pet.photo_url && (
+          {!photoUrl && (
             <span style={{ fontSize: '3.5rem' }}>{speciesEmoji[pet.species] || '🐾'}</span>
           )}
 
@@ -97,8 +101,8 @@ export default function PetCard({ pet }: PetCardProps) {
                 height: 180,
                 borderRadius: '0.875rem',
                 marginBottom: '1.25rem',
-                background: pet.photo_url
-                  ? `url(${pet.photo_url}) center/cover no-repeat`
+                background: photoUrl
+                  ? `url(${photoUrl}) center/cover no-repeat`
                   : speciesGradient[pet.species] || speciesGradient.other,
                 display: 'flex',
                 alignItems: 'center',
@@ -106,7 +110,7 @@ export default function PetCard({ pet }: PetCardProps) {
                 position: 'relative',
               }}
             >
-              {!pet.photo_url && (
+              {!photoUrl && (
                 <span style={{ fontSize: '4rem' }}>{speciesEmoji[pet.species] || '🐾'}</span>
               )}
               <button

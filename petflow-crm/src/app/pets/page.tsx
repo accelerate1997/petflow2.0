@@ -5,7 +5,7 @@ import { PawPrint, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import PetCard from '@/components/PetCard'
 import AddPetModal from '@/components/AddPetModal'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Pet } from '@/types'
 
 type PetWithClient = Pet & { clients: { name: string } }
@@ -21,16 +21,29 @@ export default function PetsPage() {
 
   const fetchPets = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) { setLoading(false); return }
-    const { data } = await supabase
-      .from('pets')
-      .select('*, clients(name)')
-      .order('created_at', { ascending: false })
-    setPets((data || []) as PetWithClient[])
+    if (!isPocketBaseConfigured) { setLoading(false); return }
+    try {
+      const records = await pb.collection('pets').getFullList({
+        sort: '-created',
+        expand: 'owner_id',
+      })
+      
+      const mapped = records.map(record => ({
+        ...record,
+        clients: record.expand?.owner_id ? {
+          name: record.expand.owner_id.name
+        } : { name: 'Unknown' }
+      })) as unknown as PetWithClient[]
+
+      setPets(mapped)
+    } catch (error) {
+      console.error('Error fetching pets:', error)
+    }
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchPets() }, [fetchPets])
+
 
   useEffect(() => {
     let result = [...pets]
@@ -59,7 +72,7 @@ export default function PetsPage() {
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1300 }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

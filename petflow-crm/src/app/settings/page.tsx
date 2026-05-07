@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, ExternalLink, Wifi, WifiOff, QrCode, Loader2, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Settings, BusinessHours } from '@/types'
 
 const days = [
@@ -42,28 +42,39 @@ export default function SettingsPage() {
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from('settings').select('*').eq('id', 1).single()
-    if (data) setSettings(data as Settings)
+    if (!isPocketBaseConfigured) { setLoading(false); return }
+    try {
+      const record = await pb.collection('settings').getFirstListItem('')
+      if (record) setSettings(record as unknown as Settings)
+    } catch (error) {
+      console.error('Error fetching settings:', error)
+    }
     setLoading(false)
   }
 
   const loadWhatsAppConfig = async () => {
-    const { data } = await supabase.from('whatsapp_config').select('*').eq('id', 1).single()
-    if (data) {
-      setWaConfig({
-        evolution_api_url: data.evolution_api_url || '',
-        evolution_api_key: data.evolution_api_key || '',
-        instance_name: data.instance_name || '',
-        openai_api_key: data.openai_api_key || '',
-        agent_public_url: data.agent_public_url || '',
-        booking_link: data.booking_link || '',
-        spa_name: data.spa_name || '',
-      })
-      if (data.evolution_api_url && data.evolution_api_key && data.instance_name) {
-        checkWhatsAppStatus(data.evolution_api_url, data.evolution_api_key, data.instance_name)
+    if (!isPocketBaseConfigured) return
+    try {
+      const record = await pb.collection('whatsapp_config').getFirstListItem('')
+      if (record) {
+        setWaConfig({
+          evolution_api_url: record.evolution_api_url || '',
+          evolution_api_key: record.evolution_api_key || '',
+          instance_name: record.instance_name || '',
+          openai_api_key: record.openai_api_key || '',
+          agent_public_url: record.agent_public_url || '',
+          booking_link: record.booking_link || '',
+          spa_name: record.spa_name || '',
+        })
+        if (record.evolution_api_url && record.evolution_api_key && record.instance_name) {
+          checkWhatsAppStatus(record.evolution_api_url, record.evolution_api_key, record.instance_name)
+        }
       }
+    } catch (error) {
+      console.error('Error loading WhatsApp config:', error)
     }
   }
+
 
   useEffect(() => {
     fetchSettings()
@@ -207,26 +218,36 @@ export default function SettingsPage() {
     setWaSaving(true)
     setWaMessage(null)
 
-    // Upsert into whatsapp_config table
-    const { error } = await supabase.from('whatsapp_config').upsert({
-      id: 1,
-      evolution_api_url: waConfig.evolution_api_url,
-      evolution_api_key: waConfig.evolution_api_key,
-      instance_name: waConfig.instance_name,
-      openai_api_key: waConfig.openai_api_key,
-      agent_public_url: waConfig.agent_public_url,
-      booking_link: waConfig.booking_link,
-      spa_name: waConfig.spa_name,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' })
+    try {
+      let record;
+      try {
+        record = await pb.collection('whatsapp_config').getFirstListItem('')
+      } catch (e) {
+        // Not found, create it
+      }
 
-    setWaSaving(false)
-    if (error) {
-      setWaMessage({ type: 'error', text: error.message })
-    } else {
+      const data = {
+        evolution_api_url: waConfig.evolution_api_url,
+        evolution_api_key: waConfig.evolution_api_key,
+        instance_name: waConfig.instance_name,
+        openai_api_key: waConfig.openai_api_key,
+        agent_public_url: waConfig.agent_public_url,
+        booking_link: waConfig.booking_link,
+        spa_name: waConfig.spa_name,
+      };
+
+      if (record) {
+        await pb.collection('whatsapp_config').update(record.id, data)
+      } else {
+        await pb.collection('whatsapp_config').create(data)
+      }
+
       setWaMessage({ type: 'success', text: 'WhatsApp configuration saved! ✅' })
       setTimeout(() => setWaMessage(null), 3000)
+    } catch (error: any) {
+      setWaMessage({ type: 'error', text: error.message || 'Error saving config' })
     }
+    setWaSaving(false)
   }
 
   const handleSave = async () => {
@@ -234,24 +255,31 @@ export default function SettingsPage() {
     setSaving(true)
     setMessage(null)
 
-    const { error } = await supabase.from('settings').update({
-      spa_name: settings.spa_name,
-      spa_whatsapp: settings.spa_whatsapp,
-      spa_email: settings.spa_email,
-      spa_address: settings.spa_address,
-      business_hours: settings.business_hours,
-      currency_symbol: settings.currency_symbol,
-      updated_at: new Date().toISOString(),
-    }).eq('id', 1)
+    try {
+      const record = await pb.collection('settings').getFirstListItem('')
+      const data = {
+        spa_name: settings.spa_name,
+        spa_whatsapp: settings.spa_whatsapp,
+        spa_email: settings.spa_email,
+        spa_address: settings.spa_address,
+        business_hours: settings.business_hours,
+        currency_symbol: settings.currency_symbol,
+      };
 
-    setSaving(false)
-    if (error) {
-      setMessage({ type: 'error', text: error.message })
-    } else {
+      if (record) {
+        await pb.collection('settings').update(record.id, data)
+      } else {
+        await pb.collection('settings').create(data)
+      }
+
       setMessage({ type: 'success', text: 'Settings saved successfully!' })
       setTimeout(() => setMessage(null), 3000)
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Error saving settings' })
     }
+    setSaving(false)
   }
+
 
   const toggleShowKey = (field: string) => {
     setShowKeys(prev => ({ ...prev, [field]: !prev[field] }))
@@ -267,14 +295,15 @@ export default function SettingsPage() {
         </div>
         <h2 className="text-xl font-700">Database Setup Required</h2>
         <p className="text-gray-500 max-w-md mx-auto">
-          It looks like the <code>settings</code> table hasn&apos;t been initialized in your Supabase database yet.
+          It looks like the <code>settings</code> collection hasn&apos;t been initialized in your PocketBase instance yet.
         </p>
         <div className="bg-gray-50 p-4 rounded-xl text-left text-sm font-mono border border-gray-100 mt-2">
           <p className="color-sage-dark font-600 mb-2"># Instructions:</p>
           <ol className="list-decimal pl-4 space-y-1 text-gray-600">
-            <li>Open your Supabase SQL Editor</li>
-            <li>Copy the code from <code>supabase_migration.sql</code> (lines 138-166)</li>
-            <li>Run it to create the settings table and default profile</li>
+            <li>Open your PocketBase Admin UI</li>
+            <li>Create a collection named <code>settings</code></li>
+            <li>Add fields for <code>spa_name</code>, <code>spa_whatsapp</code>, etc.</li>
+            <li>Create at least one record.</li>
           </ol>
         </div>
         <button className="btn-sage mt-4" onClick={fetchSettings}>
@@ -283,6 +312,7 @@ export default function SettingsPage() {
       </div>
     </div>
   )
+
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1000 }}>

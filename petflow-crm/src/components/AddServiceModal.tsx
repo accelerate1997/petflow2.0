@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, Sparkles, Image as ImageIcon, IndianRupee, Tag } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb } from '@/lib/pocketbase'
 
 interface Props {
   onClose: () => void
@@ -28,19 +28,22 @@ export default function AddServiceModal({ onClose, onSuccess }: Props) {
     setLoading(true)
     setError('')
 
-    const { error: err } = await supabase.from('services').insert({
-      service_name: form.service_name,
-      pet_type: form.pet_type,
-      description: form.description || null,
-      price: parseFloat(form.price),
-      thumbnail: form.thumbnail,
-    })
-
+    try {
+      await pb.collection('services').create({
+        service_name: form.service_name,
+        pet_type: form.pet_type,
+        description: form.description || null,
+        price: parseFloat(form.price),
+        thumbnail: form.thumbnail,
+      })
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Error saving service')
+    }
     setLoading(false)
-    if (err) { setError(err.message); return }
-    onSuccess()
-    onClose()
   }
+
 
   const emojiOptions = ['✂️', '🧼', '💅', '🐶', '🐱', '🦷', '🛁', '🧸', '🚿', '🧺']
 

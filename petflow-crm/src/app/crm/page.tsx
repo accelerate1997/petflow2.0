@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Sparkles, Plus, Search, Filter } from 'lucide-react'
 import KanbanBoard from '@/components/KanbanBoard'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Appointment, AppointmentStatus } from '@/types'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 
@@ -15,19 +15,28 @@ export default function PetCRMPage() {
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) { setLoading(false); return }
+    if (!isPocketBaseConfigured) { setLoading(false); return }
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*, pets(*, clients(name))')
-      // Only show recent and current appointments for the CRM workflow
-      .order('appointment_date', { ascending: false })
-      .order('appointment_time', { ascending: true })
+    try {
+      const records = await pb.collection('appointments').getFullList({
+        sort: '-appointment_date,appointment_time',
+        expand: 'pet_id,pet_id.owner_id',
+      })
+      
+      // Map PocketBase expand to our Appointment type
+      const mapped = records.map(record => ({
+        ...record,
+        pets: record.expand?.pet_id ? {
+          ...record.expand.pet_id,
+          clients: record.expand.pet_id.expand?.owner_id ? {
+            name: record.expand.pet_id.expand.owner_id.name
+          } : undefined
+        } : undefined
+      })) as unknown as Appointment[]
 
-    if (error) {
+      setAppointments(mapped)
+    } catch (error) {
       console.error('Error fetching appointments:', error)
-    } else {
-      setAppointments((data || []) as Appointment[])
     }
     setLoading(false)
   }, [])
@@ -42,20 +51,18 @@ export default function PetCRMPage() {
       prev.map(apt => apt.id === id ? { ...apt, status: newStatus } : apt)
     )
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status: newStatus })
-      .eq('id', id)
-
-    if (error) {
-      console.error('Error updating status:', error.message || JSON.stringify(error))
+    try {
+      await pb.collection('appointments').update(id, { status: newStatus })
+    } catch (error) {
+      console.error('Error updating status:', error)
       fetchAppointments() // Revert if failed
     }
   }
 
+
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: '100vw' }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
       
       {/* Header */}
       <div className="flex items-center justify-between mb-8">

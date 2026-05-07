@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, User } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb } from '@/lib/pocketbase'
 
 interface Props {
   onClose: () => void
@@ -25,18 +25,22 @@ export default function AddClientModal({ onClose, onSuccess }: Props) {
     if (!form.name.trim()) { setError('Name is required'); return }
     setLoading(true)
     setError('')
-    const { error: err } = await supabase.from('clients').insert({
-      name: form.name.trim(),
-      whatsapp_number: form.whatsapp_number || null,
-      email: form.email || null,
-      address: form.address || null,
-      total_spend: form.total_spend ? parseFloat(form.total_spend) : 0,
-    })
+    try {
+      await pb.collection('clients').create({
+        name: form.name.trim(),
+        whatsapp_number: form.whatsapp_number || null,
+        email: form.email || null,
+        address: form.address || null,
+        total_spend: form.total_spend ? parseFloat(form.total_spend) : 0,
+      })
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Error saving client')
+    }
     setLoading(false)
-    if (err) { setError(err.message); return }
-    onSuccess()
-    onClose()
   }
+
 
   return (
     <div className="modal-overlay" onClick={onClose}>

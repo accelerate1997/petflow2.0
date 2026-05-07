@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { PawPrint, IndianRupee, Users, TrendingUp, Calendar, ArrowRight, Clock } from 'lucide-react'
 import StatCard from '@/components/StatCard'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Client, Pet, Appointment } from '@/types'
 import Link from 'next/link'
 
@@ -22,33 +22,55 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured) { setLoading(false); return }
+      if (!isPocketBaseConfigured) { setLoading(false); return }
       
       const today = new Date().toISOString().split('T')[0]
 
-      const [petsRes, clientsRes, recentClientsRes, appointmentsRes] = await Promise.all([
-        supabase.from('pets').select('id', { count: 'exact', head: true }),
-        supabase.from('clients').select('total_spend, join_date'),
-        supabase.from('clients').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('appointments').select('*, pets(pet_name, species)').eq('appointment_date', today).order('appointment_time'),
-      ])
+      try {
+        const [petsRes, clientsRes, appointmentsRes] = await Promise.all([
+          pb.collection('pets').getList(1, 1, { fields: 'id', totalItems: true }),
+          pb.collection('clients').getFullList({ fields: 'id,total_spend,join_date,name,created' }),
+          pb.collection('appointments').getFullList({
+            filter: `appointment_date = "${today}"`,
+            sort: 'appointment_time',
+            expand: 'pet_id',
+          }),
+        ])
 
-      const revenue = (clientsRes.data || []).reduce((sum: number, c: any) => sum + (c.total_spend || 0), 0)
-      const thisMonth = new Date()
-      const newClients = (clientsRes.data || []).filter((c: any) => {
-        const d = new Date(c.join_date)
-        return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear()
-      }).length
+        const revenue = (clientsRes || []).reduce((sum: number, c: any) => sum + (c.total_spend || 0), 0)
+        const thisMonth = new Date()
+        const newClients = (clientsRes || []).filter((c: any) => {
+          const d = new Date(c.join_date || c.created)
+          return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear()
+        }).length
 
-      setStats({
-        totalPets: petsRes.count || 0,
-        totalRevenue: revenue,
-        totalClients: (clientsRes.data || []).length,
-        newThisMonth: newClients,
-        appointmentsToday: (appointmentsRes.data || []).length,
-      })
-      setRecentClients((recentClientsRes.data || []) as Client[])
-      setUpcomingAppointments((appointmentsRes.data || []) as any[])
+        setStats({
+          totalPets: petsRes.totalItems || 0,
+          totalRevenue: revenue,
+          totalClients: (clientsRes || []).length,
+          newThisMonth: newClients,
+          appointmentsToday: (appointmentsRes || []).length,
+        })
+        
+        // Map recent clients (sorted by created)
+        const sortedClients = [...clientsRes].sort((a, b) => 
+          new Date(b.created).getTime() - new Date(a.created).getTime()
+        ).slice(0, 5)
+        setRecentClients(sortedClients as unknown as Client[])
+
+        // Map upcoming appointments
+        const mappedApts = appointmentsRes.map(record => ({
+          ...record,
+          pets: record.expand?.pet_id ? {
+            pet_name: record.expand.pet_id.pet_name,
+            species: record.expand.pet_id.species,
+          } : { pet_name: 'Unknown', species: 'other' }
+        }))
+        setUpcomingAppointments(mappedApts as unknown as Appointment[])
+
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error)
+      }
       setLoading(false)
     }
     load()
@@ -61,7 +83,8 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>

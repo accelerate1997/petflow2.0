@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, Search, Tag, Trash2, Edit3, IndianRupee, Sparkles } from 'lucide-react'
 import AddServiceModal from '@/components/AddServiceModal'
 import SetupBanner from '@/components/SetupBanner'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Service } from '@/types'
 
 export default function ServicesPage() {
@@ -15,12 +15,15 @@ export default function ServicesPage() {
 
   const fetchServices = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) { setLoading(false); return }
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setServices((data || []) as Service[])
+    if (!isPocketBaseConfigured) { setLoading(false); return }
+    try {
+      const records = await pb.collection('services').getFullList({
+        sort: '-created',
+      })
+      setServices(records as unknown as Service[])
+    } catch (error) {
+      console.error('Error fetching services:', error)
+    }
     setLoading(false)
   }, [])
 
@@ -28,8 +31,12 @@ export default function ServicesPage() {
 
   const deleteService = async (id: string) => {
     if (!confirm('Are you sure you want to delete this service?')) return
-    await supabase.from('services').delete().eq('id', id)
-    fetchServices()
+    try {
+      await pb.collection('services').delete(id)
+      fetchServices()
+    } catch (error) {
+      console.error('Error deleting service:', error)
+    }
   }
 
   const filtered = services.filter(s => 
@@ -42,7 +49,8 @@ export default function ServicesPage() {
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
-      {!isSupabaseConfigured && <SetupBanner />}
+      {!isPocketBaseConfigured && <SetupBanner />}
+
       
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
