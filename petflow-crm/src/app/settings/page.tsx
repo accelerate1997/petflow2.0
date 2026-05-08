@@ -315,18 +315,18 @@ export default function SettingsPage() {
 
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1000 }}>
+    <div className="p-4 md:p-8 max-w-[1000px] pb-24 md:pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>Settings ⚙️</h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Settings ⚙️</h1>
+          <p className="text-gray-400 text-sm">
             Configure your spa profile, business hours, and integrations
           </p>
         </div>
         {activeTab !== 'whatsapp' && (
           <button 
-            className="btn-sage" 
+            className="btn-sage w-full md:w-auto justify-center" 
             onClick={handleSave}
             disabled={saving}
           >
@@ -351,24 +351,24 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-8 bg-gray-50 p-1 rounded-xl border border-gray-100 w-fit">
+      {/* Tabs - Scrollable on mobile */}
+      <div className="flex gap-1 mb-8 bg-gray-50 p-1 rounded-xl border border-gray-100 w-full md:w-fit overflow-x-auto hide-scrollbar">
         {[
-          { id: 'profile', label: 'Spa Profile', icon: User },
-          { id: 'hours', label: 'Business Hours', icon: Clock },
+          { id: 'profile', label: 'Profile', icon: User },
+          { id: 'hours', label: 'Hours', icon: Clock },
           { id: 'system', label: 'System', icon: Globe },
           { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-600 transition-all ${
+            className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-600 transition-all whitespace-nowrap ${
               activeTab === tab.id 
                 ? 'bg-white shadow-sm text-gray-900 border border-gray-200' 
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <tab.icon size={16} />
+            <tab.icon size={14} className="md:w-4 md:h-4" />
             {tab.label}
           </button>
         ))}
@@ -435,31 +435,31 @@ export default function SettingsPage() {
                 }
 
                 return (
-                  <div key={day.id} className="flex items-center gap-6 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                    <div className="w-32 font-700 text-sm">{day.label}</div>
+                  <div key={day.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                    <div className="sm:w-32 font-bold text-sm text-gray-700">{day.label}</div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-1">
                       <input
                         type="time"
-                        className="input-field w-32 py-1.5"
+                        className="input-field flex-1 sm:w-32 py-1.5"
                         disabled={hour.closed}
                         value={hour.open}
                         onChange={e => updateDay('open', e.target.value)}
                       />
-                      <span className="text-gray-400">to</span>
+                      <span className="text-gray-400 text-xs">to</span>
                       <input
                         type="time"
-                        className="input-field w-32 py-1.5"
+                        className="input-field flex-1 sm:w-32 py-1.5"
                         disabled={hour.closed}
                         value={hour.close}
                         onChange={e => updateDay('close', e.target.value)}
                       />
                     </div>
 
-                    <div className="flex-1 flex justify-end">
+                    <div className="flex justify-end sm:ml-4">
                       <button
                         onClick={() => updateDay('closed', !hour.closed)}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-700 transition-all ${
+                        className={`w-full sm:w-24 py-1.5 rounded-lg text-[0.65rem] font-bold transition-all ${
                           hour.closed 
                             ? 'bg-red-50 text-red-600' 
                             : 'bg-emerald-50 text-emerald-600'

@@ -20,25 +20,25 @@ export default function StatCard({
   trendPositive = true,
 }: StatCardProps) {
   return (
-    <div className="card p-6 flex items-start justify-between">
-      <div>
-        <p style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500, marginBottom: '0.375rem' }}>
+    <div className="card p-4 md:p-6 flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-[0.7rem] md:text-[0.8rem] text-gray-400 font-500 mb-1 truncate">
           {label}
         </p>
-        <p style={{ fontSize: '1.875rem', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.1 }}>
+        <p className="text-xl md:text-3xl font-bold text-gray-900 leading-tight truncate">
           {value}
         </p>
         {trend && (
-          <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: trendPositive ? '#10b981' : '#f59e0b', fontWeight: 500 }}>
+          <p className={`text-[0.65rem] md:text-[0.75rem] mt-1.5 font-500 ${trendPositive ? 'text-emerald-500' : 'text-amber-500'}`}>
             {trend}
           </p>
         )}
       </div>
       <div
-        className="flex items-center justify-center rounded-xl"
-        style={{ width: 48, height: 48, background: iconBg, flexShrink: 0 }}
+        className="flex items-center justify-center rounded-xl flex-shrink-0"
+        style={{ width: 36, height: 36, background: iconBg }}
       >
-        <Icon size={22} color={iconColor} />
+        <Icon size={18} color={iconColor} className="md:w-[22px] md:h-[22px]" />
       </div>
     </div>
   )

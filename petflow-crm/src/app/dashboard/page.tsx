@@ -141,10 +141,10 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
         {/* Today's Schedule */}
         <div className="card p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 style={{ fontWeight: 700, fontSize: '1rem' }}>Today's Schedule</h2>
-            <Link href="/appointments" style={{ fontSize: '0.78rem', color: 'var(--sage-dark)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-              View Agenda <ArrowRight size={13} />
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <h2 className="font-bold text-sm md:text-base">Today's Schedule</h2>
+            <Link href="/appointments" className="flex items-center gap-1 text-[0.7rem] md:text-[0.78rem] text-sage-dark no-underline whitespace-nowrap">
+              View Agenda <ArrowRight size={12} className="md:w-[13px] md:h-[13px]" />
             </Link>
           </div>
           {loading ? (
@@ -177,10 +177,10 @@ export default function DashboardPage() {
 
         {/* Recent Clients */}
         <div className="card p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 style={{ fontWeight: 700, fontSize: '1rem' }}>Recent Clients</h2>
-            <Link href="/clients" style={{ fontSize: '0.78rem', color: 'var(--sage-dark)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-              All Parents <ArrowRight size={13} />
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <h2 className="font-bold text-sm md:text-base">Recent Clients</h2>
+            <Link href="/clients" className="flex items-center gap-1 text-[0.7rem] md:text-[0.78rem] text-sage-dark no-underline whitespace-nowrap">
+              All Parents <ArrowRight size={12} className="md:w-[13px] md:h-[13px]" />
             </Link>
           </div>
           {loading ? (
