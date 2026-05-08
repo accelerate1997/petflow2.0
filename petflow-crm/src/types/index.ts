@@ -69,7 +69,7 @@ export const statusStyles: Record<AppointmentStatus, { color: string; bg: string
   CheckedIn:  { color: 'text-indigo-700',  bg: 'bg-indigo-50 border-indigo-200' },
   InService:  { color: 'text-purple-700',  bg: 'bg-purple-50 border-purple-200' },
   Done:       { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-  CheckedOut: { color: 'text-gray-700',    bg: 'bg-gray-100 border-gray-300' },
+  CheckOut: { color: 'text-gray-700',    bg: 'bg-gray-100 border-gray-300' },
   Cancelled:  { color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
   'No-show':   { color: 'text-gray-700',    bg: 'bg-gray-50 border-gray-200' },
 }
