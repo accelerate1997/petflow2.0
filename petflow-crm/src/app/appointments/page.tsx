@@ -74,26 +74,25 @@ export default function AppointmentsPage() {
   const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1100 }}>
+    <div className="p-4 md:p-8 max-w-[1100px] pb-24 md:pb-8">
       {!isPocketBaseConfigured && <SetupBanner />}
 
-      
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>Spa Schedule 📅</h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Spa Schedule 📅</h1>
+          <p className="text-gray-400 text-sm">
             Manage appointments and service queue
           </p>
         </div>
-        <button className="btn-sage" onClick={() => setShowModal(true)}>
+        <button className="btn-sage w-full md:w-auto justify-center" onClick={() => setShowModal(true)}>
           <Plus size={16} />
           Book Visit
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b" style={{ borderColor: '#f3f4f6' }}>
+      {/* Tabs - Scrollable on mobile */}
+      <div className="flex items-center gap-1 mb-6 border-b overflow-x-auto hide-scrollbar" style={{ borderColor: '#f3f4f6' }}>
         {(['today', 'tomorrow', 'week', 'all'] as const).map(v => (
           <button
             key={v}
@@ -106,7 +105,8 @@ export default function AppointmentsPage() {
               color: view === v ? 'var(--sage-dark)' : '#9ca3af',
               borderBottom: view === v ? '2px solid var(--sage)' : '2px solid transparent',
               transition: 'all 0.2s',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             {v}
@@ -130,42 +130,39 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="card p-5 flex items-center gap-5">
+            <div key={apt.id} className="card p-3 md:p-5 flex items-center gap-3 md:gap-5">
               {/* Time Section */}
-              <div className="flex flex-col items-center justify-center p-3 rounded-2xl" style={{ width: 80, background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
-                <Clock size={16} className="mb-1" />
-                <p className="font-700 text-sm">{apt.appointment_time.slice(0, 5)}</p>
-                <p className="text-[0.65rem] font-600 opacity-60 uppercase">{new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+              <div className="flex flex-col items-center justify-center p-2 md:p-3 rounded-2xl" style={{ width: 70, background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
+                <Clock size={14} className="mb-1" />
+                <p className="font-700 text-xs md:text-sm">{apt.appointment_time.slice(0, 5)}</p>
+                <p className="text-[0.6rem] font-600 opacity-60 uppercase">{new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
               </div>
 
               {/* Pet Info */}
               <div
                 className="flex items-center justify-center rounded-2xl flex-shrink-0"
-                style={{ width: 48, height: 48, background: '#f9fafb', fontSize: '1.4rem' }}
+                style={{ width: 40, height: 40, background: '#f9fafb', fontSize: '1.2rem' }}
               >
                 {speciesEmoji[apt.pets?.species || 'other']}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-700 text-[1rem]">{apt.pets?.pet_name}</p>
-                  <span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full border ${statusStyles[apt.status].bg} ${statusStyles[apt.status].color}`}>
-                    {apt.status}
-                  </span>
+                  <p className="font-700 text-[0.9rem] md:text-[1rem] truncate">{apt.pets?.pet_name}</p>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.7rem] md:text-xs text-gray-500">
                   <span className="font-600 color-sage-dark">{apt.service_type}</span>
-                  <span>•</span>
-                  <span>{apt.pets?.clients?.name} (Parent)</span>
+                  <span className="hidden md:inline">•</span>
+                  <span className="truncate">{apt.pets?.clients?.name}</span>
                 </div>
               </div>
 
               {/* Actions & Price */}
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-[0.65rem] text-gray-400 font-600 uppercase">Service Fee</p>
-                  <p className="font-700">{formatCurrency(apt.price)}</p>
+              <div className="flex items-center gap-3 md:gap-6">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[0.6rem] text-gray-400 font-600 uppercase">Fee</p>
+                  <p className="font-700 text-sm">{formatCurrency(apt.price)}</p>
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   {apt.status === 'Booked' && (
                     <>
                       <button

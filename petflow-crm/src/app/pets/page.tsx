@@ -73,43 +73,44 @@ export default function PetsPage() {
   ]
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1300 }}>
+    <div className="p-4 md:p-8 max-w-[1300px] pb-24 md:pb-8">
       {!isPocketBaseConfigured && <SetupBanner />}
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">
             Pet Gallery 🐾
           </h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+          <p className="text-gray-400 text-sm">
             {filtered.length} pet{filtered.length !== 1 ? 's' : ''} in your spa family
           </p>
         </div>
-        <button className="btn-sage" onClick={() => setShowModal(true)}>
+        <button className="btn-sage w-full md:w-auto justify-center" onClick={() => setShowModal(true)}>
           <Plus size={16} />
           Add Pet
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card p-4 mb-6 flex flex-wrap items-center gap-3">
+      {/* Filters - Stackable on mobile */}
+      <div className="card p-4 mb-6 flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-4 md:gap-3">
         {/* Search */}
-        <div className="flex items-center gap-2 flex-1" style={{ minWidth: 220, background: 'var(--bg)', border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.5rem 0.875rem' }}>
+        <div className="flex items-center gap-2 flex-1 min-w-[200px]" style={{ background: 'var(--bg)', border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.5rem 0.875rem' }}>
           <Search size={15} style={{ color: '#9ca3af', flexShrink: 0 }} />
           <input
-            placeholder="Search pets, breeds, owners..."
+            placeholder="Search pets, breeds..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.875rem', color: 'var(--text)', width: '100%' }}
           />
         </div>
 
-        {/* Species filter */}
-        <div className="flex gap-2">
+        {/* Species filter - Scrollable on mobile */}
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 md:pb-0">
           {speciesOptions.map(opt => (
             <button
               key={opt.value}
               onClick={() => setSpeciesFilter(opt.value as any)}
+              className="whitespace-nowrap"
               style={{
                 padding: '0.375rem 0.875rem',
                 borderRadius: '99px',
@@ -128,12 +129,12 @@ export default function PetsPage() {
         </div>
 
         {/* Temperament filter */}
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal size={15} style={{ color: '#9ca3af' }} />
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <SlidersHorizontal size={15} className="text-gray-400 hidden md:block" />
           <select
             value={temperamentFilter}
             onChange={e => setTemperamentFilter(e.target.value)}
-            style={{ border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.4rem 0.75rem', fontSize: '0.82rem', background: 'white', cursor: 'pointer', outline: 'none', color: '#374151' }}
+            className="w-full md:w-auto border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white text-gray-700"
           >
             {temperamentOptions.map(opt => (
               <option key={opt} value={opt}>{opt === 'all' ? 'All Temperaments' : opt}</option>

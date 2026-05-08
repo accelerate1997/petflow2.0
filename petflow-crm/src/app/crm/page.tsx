@@ -66,47 +66,47 @@ export default function PetCRMPage() {
 
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: '100vw' }}>
+    <div className="p-4 md:p-8 max-w-[100vw] pb-24 md:pb-8">
       {!isPocketBaseConfigured && <SetupBanner />}
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>Pet CRM 🌊</h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Pet CRM 🌊</h1>
+          <p className="text-gray-400 text-sm">
             Track your customers through the spa workflow
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="relative flex-1 md:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input 
               type="text" 
               placeholder="Search pets..."
-              className="pl-9 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sage/20 transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sage/20 transition-all"
             />
           </div>
-          <button className="btn-sage" onClick={() => setShowModal(true)}>
+          <button className="btn-sage whitespace-nowrap" onClick={() => setShowModal(true)}>
             <Plus size={16} />
-            New Interaction
+            New
           </button>
         </div>
       </div>
 
       {/* CRM Stats Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
         {[
-          { label: 'Active In Service', count: appointments.filter(a => a.status === 'InService').length, color: '#8b5cf6' },
-          { label: 'Ready for Pickup', count: appointments.filter(a => a.status === 'Done').length, color: '#10b981' },
-          { label: 'Today\'s Total', count: appointments.length, color: '#3b82f6' },
-          { label: 'New Leads', count: appointments.filter(a => a.status === 'Lead').length, color: '#f59e0b' },
+          { label: 'In Service', count: appointments.filter(a => a.status === 'InService').length, color: '#8b5cf6' },
+          { label: 'Ready', count: appointments.filter(a => a.status === 'Done').length, color: '#10b981' },
+          { label: 'Total', count: appointments.length, color: '#3b82f6' },
+          { label: 'Leads', count: appointments.filter(a => a.status === 'Lead').length, color: '#f59e0b' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
-            <span className="text-[0.7rem] font-700 text-gray-400 uppercase tracking-wider">{stat.label}</span>
+          <div key={i} className="bg-white p-3 md:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
+            <span className="text-[0.6rem] md:text-[0.7rem] font-700 text-gray-400 uppercase tracking-wider">{stat.label}</span>
             <div className="flex items-end justify-between">
-              <span className="text-2xl font-800" style={{ color: stat.color }}>{stat.count}</span>
+              <span className="text-xl md:text-2xl font-800" style={{ color: stat.color }}>{stat.count}</span>
               <div 
-                className="w-1.5 h-6 rounded-full" 
+                className="w-1 md:w-1.5 h-4 md:h-6 rounded-full" 
                 style={{ backgroundColor: stat.color, opacity: 0.2 }}
               />
             </div>

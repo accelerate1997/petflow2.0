@@ -84,23 +84,23 @@ export default function DashboardPage() {
   const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
+    <div className="p-4 md:p-8 max-w-[1200px] pb-24 md:pb-8">
       {!isPocketBaseConfigured && <SetupBanner />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6 md:mb-8">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>Good morning! 🌿</h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Good morning! 🌿</h1>
+          <p className="text-gray-400 text-sm">
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-5 mb-8" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-8">
         <StatCard
-          label="Appointments Today"
+          label="Today's Appts"
           value={loading ? '—' : stats.appointmentsToday}
           icon={Calendar}
           iconColor="#3b82f6"
@@ -114,7 +114,7 @@ export default function DashboardPage() {
           icon={IndianRupee}
           iconColor="#8b5cf6"
           iconBg="rgba(139,92,246,0.1)"
-          trend="All time earnings"
+          trend="All time"
           trendPositive
         />
         <StatCard
@@ -123,11 +123,11 @@ export default function DashboardPage() {
           icon={Users}
           iconColor="#f59e0b"
           iconBg="rgba(245,158,11,0.1)"
-          trend="Active clients"
+          trend="Active"
           trendPositive
         />
         <StatCard
-          label="Total Active Pets"
+          label="Active Pets"
           value={loading ? '—' : stats.totalPets}
           icon={PawPrint}
           iconColor="#89A894"
@@ -137,10 +137,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Two-column: Recent Clients + Recent Pets */}
-      <div className="grid gap-6" style={{ gridTemplateColumns: '1.2fr 0.8fr' }}>
+      {/* Two-column Layout: Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
         {/* Today's Schedule */}
-        <div className="card p-5">
+        <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 style={{ fontWeight: 700, fontSize: '1rem' }}>Today's Schedule</h2>
             <Link href="/appointments" style={{ fontSize: '0.78rem', color: 'var(--sage-dark)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Clients */}
-        <div className="card p-5">
+        <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 style={{ fontWeight: 700, fontSize: '1rem' }}>Recent Clients</h2>
             <Link href="/clients" style={{ fontSize: '0.78rem', color: 'var(--sage-dark)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>

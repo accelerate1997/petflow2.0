@@ -73,20 +73,18 @@ export default function ClientsPage() {
   const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
 
   return (
-    <div style={{ padding: '2rem 2.5rem', maxWidth: 1000 }}>
+    <div className="p-4 md:p-8 max-w-[1200px] pb-24 md:pb-8">
       {!isPocketBaseConfigured && <SetupBanner />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.25rem' }}>Pet Parents 👤</h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-            {filtered.length} client{filtered.length !== 1 ? 's' : ''} registered
-          </p>
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Pet Parents 👪</h1>
+          <p className="text-gray-400 text-sm">Manage your client database and history</p>
         </div>
-        <button className="btn-sage" onClick={() => setShowAddClient(true)}>
+        <button className="btn-sage w-full md:w-auto justify-center" onClick={() => setShowAddClient(true)}>
           <Plus size={16} />
-          Add Client
+          Add Parent
         </button>
       </div>
 

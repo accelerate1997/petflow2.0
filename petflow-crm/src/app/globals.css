@@ -162,3 +162,34 @@ html, body {
   background: var(--sage-muted);
   color: var(--sage-dark);
 }
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+  .mobile-flex { display: flex !important; }
+  
+  .modal-box {
+    padding: 1.5rem;
+    max-height: 100vh;
+    border-radius: 1.25rem 1.25rem 0 0;
+    position: fixed;
+    bottom: 0;
+    max-width: 100%;
+  }
+
+  .card {
+    border-radius: 1rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
