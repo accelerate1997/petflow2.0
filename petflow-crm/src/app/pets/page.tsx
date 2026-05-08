@@ -36,8 +36,10 @@ export default function PetsPage() {
       })) as unknown as PetWithClient[]
 
       setPets(mapped)
-    } catch (error) {
-      console.error('Error fetching pets:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error fetching pets:', error)
+      }
     }
     setLoading(false)
   }, [])

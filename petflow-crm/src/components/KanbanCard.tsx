@@ -9,7 +9,7 @@ interface KanbanCardProps {
   onMove: (id: string, newStatus: AppointmentStatus) => void
 }
 
-const statusOrder: AppointmentStatus[] = ['Lead', 'Booked', 'CheckedIn', 'InService', 'Done', 'CheckedOut']
+const statusOrder: AppointmentStatus[] = ['Lead', 'Booked', 'CheckedIn', 'InService', 'Done', 'CheckOut']
 
 export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
   const currentIndex = statusOrder.indexOf(appointment.status)

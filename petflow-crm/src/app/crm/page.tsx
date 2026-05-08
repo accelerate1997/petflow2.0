@@ -35,8 +35,10 @@ export default function PetCRMPage() {
       })) as unknown as Appointment[]
 
       setAppointments(mapped)
-    } catch (error) {
-      console.error('Error fetching appointments:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error fetching appointments:', error)
+      }
     }
     setLoading(false)
   }, [])
@@ -53,8 +55,11 @@ export default function PetCRMPage() {
 
     try {
       await pb.collection('appointments').update(id, { status: newStatus })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating status:', error)
+      if (error.data) {
+        console.error('Validation errors:', JSON.stringify(error.data, null, 2))
+      }
       fetchAppointments() // Revert if failed
     }
   }

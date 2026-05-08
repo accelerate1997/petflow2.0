@@ -86,8 +86,10 @@ export default function SettingsPage() {
           checkWhatsAppStatus(record.evolution_api_url, record.evolution_api_key, record.instance_name)
         }
       }
-    } catch (error) {
-      console.error('Error loading WhatsApp config:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error loading WhatsApp config:', error)
+      }
     }
   }
 

@@ -68,8 +68,10 @@ export default function DashboardPage() {
         }))
         setUpcomingAppointments(mappedApts as unknown as Appointment[])
 
-      } catch (error) {
-        console.error('Error loading dashboard stats:', error)
+      } catch (error: any) {
+        if (!error.isAbort) {
+          console.error('Error loading dashboard stats:', error)
+        }
       }
       setLoading(false)
     }

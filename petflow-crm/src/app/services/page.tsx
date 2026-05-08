@@ -21,8 +21,10 @@ export default function ServicesPage() {
         sort: '-created',
       })
       setServices(records as unknown as Service[])
-    } catch (error) {
-      console.error('Error fetching services:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error fetching services:', error)
+      }
     }
     setLoading(false)
   }, [])

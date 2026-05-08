@@ -48,7 +48,7 @@ export function getTemperamentStyle(notes: string | null) {
   return key ? temperamentConfig[key] : temperamentConfig.Default
 }
 
-export type AppointmentStatus = 'Lead' | 'Booked' | 'CheckedIn' | 'InService' | 'Done' | 'CheckedOut' | 'Cancelled' | 'No-show'
+export type AppointmentStatus = 'Lead' | 'Booked' | 'CheckedIn' | 'InService' | 'Done' | 'CheckOut' | 'Cancelled' | 'No-show'
 
 export interface Appointment {
   id: string

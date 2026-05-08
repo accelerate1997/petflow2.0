@@ -46,8 +46,10 @@ export default function AppointmentsPage() {
       })) as unknown as Appointment[]
 
       setAppointments(mapped)
-    } catch (error) {
-      console.error('Error fetching appointments:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error fetching appointments:', error)
+      }
     }
     setLoading(false)
   }, [view])
@@ -58,8 +60,11 @@ export default function AppointmentsPage() {
     try {
       await pb.collection('appointments').update(id, { status: newStatus })
       fetchAppointments()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating status:', error)
+      if (error.data) {
+        console.error('Validation errors:', JSON.stringify(error.data, null, 2))
+      }
     }
   }
 

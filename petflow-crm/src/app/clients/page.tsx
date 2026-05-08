@@ -37,8 +37,10 @@ export default function ClientsPage() {
       })) as unknown as ClientWithPets[]
 
       setClients(mapped)
-    } catch (error) {
-      console.error('Error fetching clients:', error)
+    } catch (error: any) {
+      if (!error.isAbort) {
+        console.error('Error fetching clients:', error)
+      }
     }
     setLoading(false)
   }, [])

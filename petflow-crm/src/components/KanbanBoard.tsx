@@ -15,7 +15,7 @@ const columns: { key: AppointmentStatus; label: string; icon: string; color: str
   { key: 'CheckedIn',  label: 'Checked In',  icon: '📍', color: '#6366f1' },
   { key: 'InService',  label: 'In Service',  icon: '✂️', color: '#8b5cf6' },
   { key: 'Done',       label: 'Service Done',icon: '✅', color: '#10b981' },
-  { key: 'CheckedOut', label: 'Checked Out', icon: '💎', color: '#64748b' },
+  { key: 'CheckOut', label: 'Checked Out', icon: '💎', color: '#64748b' },
 ]
 
 export default function KanbanBoard({ appointments, onMove }: KanbanBoardProps) {
