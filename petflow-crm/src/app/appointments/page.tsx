@@ -106,7 +106,7 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="bg-white rounded-2xl p-4 md:p-5 flex items-center gap-4 md:gap-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
+            <div key={apt.id} className="bg-white rounded-xl p-3 md:p-4 flex items-center gap-3 md:gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
               {/* Accent Bar */}
               <div 
                 className="absolute left-0 top-0 bottom-0 w-1 opacity-60"
@@ -114,41 +114,36 @@ export default function AppointmentsPage() {
               />
 
               {/* Time Section */}
-              <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl min-w-[70px]" style={{ background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
-                <Clock size={14} className="mb-1 opacity-70" />
-                <p className="font-800 text-[0.85rem] leading-none mb-1">{apt.appointment_time.slice(0, 5)}</p>
-                <p className="text-[0.6rem] font-700 opacity-60 uppercase tracking-tighter">
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl min-w-[60px]" style={{ background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
+                <Clock size={12} className="mb-0.5 opacity-70" />
+                <p className="font-800 text-[0.75rem] leading-none mb-0.5">{apt.appointment_time.slice(0, 5)}</p>
+                <p className="text-[0.55rem] font-700 opacity-60 uppercase tracking-tighter">
                   {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </p>
               </div>
 
               {/* Pet Avatar */}
               <div
-                className="flex items-center justify-center rounded-2xl flex-shrink-0 bg-gray-50 border border-white shadow-inner"
-                style={{ width: 48, height: 48, fontSize: '1.4rem' }}
+                className="flex items-center justify-center rounded-xl flex-shrink-0 bg-gray-50 border border-white"
+                style={{ width: 40, height: 40, fontSize: '1.2rem' }}
               >
                 {speciesEmoji[apt.pets?.species || 'other']}
               </div>
 
               {/* Main Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-800 text-[1rem] text-gray-800 truncate leading-tight">{apt.pets?.pet_name}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-[0.7rem] font-800 text-sage-dark uppercase tracking-wider bg-sage-muted px-2 py-0.5 rounded-lg">{apt.service_type}</span>
-                  <div className="flex items-center gap-1 text-gray-400">
-                    <User size={10} />
-                    <span className="text-[0.7rem] font-600 truncate">{apt.pets?.clients?.name}</span>
-                  </div>
+                <p className="font-800 text-[0.9rem] text-gray-800 truncate leading-tight mb-1">{apt.pets?.pet_name}</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-[0.6rem] font-800 text-sage-dark uppercase tracking-wider bg-sage-muted px-1.5 py-0.5 rounded-lg">{apt.service_type}</span>
+                  <span className="text-[0.6rem] font-600 text-gray-400 truncate max-w-[80px]">{apt.pets?.clients?.name}</span>
                 </div>
               </div>
 
               {/* Status & Price */}
-              <div className="flex items-center gap-4 md:gap-8">
+              <div className="flex items-center gap-3 md:gap-6">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[0.6rem] text-gray-400 font-700 uppercase tracking-widest mb-0.5">Total Fee</p>
-                  <p className="font-800 text-[1.1rem] text-gray-800">{formatCurrency(apt.price)}</p>
+                  <p className="text-[0.55rem] text-gray-400 font-700 uppercase tracking-widest">Fee</p>
+                  <p className="font-800 text-[0.95rem] text-gray-800">{formatCurrency(apt.price)}</p>
                   
                   <button 
                     type="button"
@@ -160,17 +155,17 @@ export default function AppointmentsPage() {
                         router.refresh()
                       })
                     }}
-                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[0.65rem] font-800 transition-all border shadow-sm"
+                    className="mt-1 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.55rem] font-800 transition-all border shadow-sm"
                     style={{ 
-                      backgroundColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
+                      backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
                                        apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
-                      color: apt.payment_status === 'Pending' ? '#6b7280' : 
+                      color: apt.payment_status === 'Pending' ? '#9ca3af' : 
                              apt.payment_status === 'Cash' ? '#059669' : '#2563eb',
-                      borderColor: apt.payment_status === 'Pending' ? '#e5e7eb' : 
+                      borderColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
                                    apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
                     }}
                   >
-                    {apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}
+                    <span>{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
                     <span className="uppercase tracking-widest">{apt.payment_status}</span>
                   </button>
                 </div>
