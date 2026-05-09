@@ -23,6 +23,7 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
     appointment_time: '10:00',
     price: '',
     notes: '',
+    payment_status: 'Pending',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -75,6 +76,7 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
         price: form.price ? parseFloat(form.price) : 0,
         notes: form.notes || null,
         status: 'Booked',
+        payment_status: form.payment_status,
       })
       onSuccess()
       onClose()
@@ -237,6 +239,24 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.375rem' }}>
+                Payment Status
+              </label>
+              <select
+                className="input-field"
+                value={form.payment_status}
+                onChange={e => setForm({ ...form, payment_status: e.target.value })}
+              >
+                <option value="Pending">🕒 Pending</option>
+                <option value="Cash">💵 Cash</option>
+                <option value="UPI">📱 UPI</option>
+              </select>
+            </div>
+            <div className="flex-1" />
           </div>
 
           <div>

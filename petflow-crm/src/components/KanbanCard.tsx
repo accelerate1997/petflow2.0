@@ -52,6 +52,11 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
           <span className="text-gray-300">•</span>
           <span className="truncate font-500">{appointment.service_type}</span>
         </div>
+        
+        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-gray-50 text-[0.65rem] font-700 w-fit">
+          {appointment.payment_status === 'Cash' ? '💵 Cash' : 
+           appointment.payment_status === 'UPI' ? '📱 UPI' : '🕒 Pending'}
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-gray-50">

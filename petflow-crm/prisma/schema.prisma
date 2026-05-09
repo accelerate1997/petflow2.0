@@ -57,6 +57,7 @@ model Appointment {
   appointment_date String
   appointment_time String
   status           String   @default("Booked") // Lead, Booked, CheckedIn, InService, Done, CheckedOut, Cancelled, No-show
+  payment_status   String   @default("Pending") // Pending, Cash, UPI
   price            Float?
   notes            String?
   created          DateTime @default(now())

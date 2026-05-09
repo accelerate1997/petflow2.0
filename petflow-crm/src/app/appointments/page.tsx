@@ -136,7 +136,11 @@ export default function AppointmentsPage() {
               <div className="flex items-center gap-3 md:gap-6">
                 <div className="text-right hidden sm:block">
                   <p className="text-[0.6rem] text-gray-400 font-600 uppercase">Fee</p>
-                  <p className="font-700 text-sm">{formatCurrency(apt.price)}</p>
+                  <p className="font-700 text-sm mb-1">{formatCurrency(apt.price)}</p>
+                  <div className="text-[0.6rem] font-700 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 text-gray-500">
+                    {apt.payment_status === 'Cash' ? '💵 Cash' : 
+                     apt.payment_status === 'UPI' ? '📱 UPI' : '🕒 Pending'}
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   {apt.status === 'Booked' && (

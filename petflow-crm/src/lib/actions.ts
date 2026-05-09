@@ -117,6 +117,15 @@ export async function updateAppointmentStatus(id: string, status: string) {
   revalidatePath('/crm')
 }
 
+export async function updatePaymentStatus(id: string, payment_status: string) {
+  await prisma.appointment.update({
+    where: { id },
+    data: { payment_status }
+  })
+  revalidatePath('/appointments')
+  revalidatePath('/crm')
+}
+
 // ─── Settings & Config ────────────────────────────────────────────────────────
 
 export async function getSettings() {

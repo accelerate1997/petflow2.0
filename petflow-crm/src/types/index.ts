@@ -57,6 +57,7 @@ export interface Appointment {
   appointment_date: string
   appointment_time: string
   status: AppointmentStatus
+  payment_status: 'Pending' | 'Cash' | 'UPI' | string
   price: number
   notes: string | null
   created_at: string
