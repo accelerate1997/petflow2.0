@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { PawPrint, Weight, AlertTriangle, X, User } from 'lucide-react'
 import type { Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
-import { pb } from '@/lib/pocketbase'
 
 const speciesEmoji: Record<string, string> = {
   dog: '🐕',
@@ -25,9 +24,7 @@ interface PetCardProps {
 export default function PetCard({ pet }: PetCardProps) {
   const [open, setOpen] = useState(false)
   const style = getTemperamentStyle(pet.temperament_notes)
-  const photoUrl = pet.photo 
-    ? pb.files.getUrl(pet as any, pet.photo)
-    : pet.photo_url
+  const photoUrl = pet.photo_url
 
   return (
     <>

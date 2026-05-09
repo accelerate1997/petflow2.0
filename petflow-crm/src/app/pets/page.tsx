@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { PawPrint, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import PetCard from '@/components/PetCard'
 import AddPetModal from '@/components/AddPetModal'
-import SetupBanner from '@/components/SetupBanner'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Pet } from '@/types'
+import { getPets } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 type PetWithClient = Pet & { clients: { name: string } }
 
@@ -18,28 +18,19 @@ export default function PetsPage() {
   const [speciesFilter, setSpeciesFilter] = useState<'all' | 'dog' | 'cat' | 'other'>('all')
   const [temperamentFilter, setTemperamentFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
+  const router = useRouter()
 
   const fetchPets = useCallback(async () => {
     setLoading(true)
-    if (!isPocketBaseConfigured) { setLoading(false); return }
     try {
-      const records = await pb.collection('pets').getFullList({
-        sort: '-created',
-        expand: 'owner_id',
-      })
-      
-      const mapped = records.map(record => ({
-        ...record,
-        clients: record.expand?.owner_id ? {
-          name: record.expand.owner_id.name
-        } : { name: 'Unknown' }
+      const data = await getPets()
+      const mapped = data.map((pet: any) => ({
+        ...pet,
+        clients: pet.owner ? { name: pet.owner.name } : { name: 'Unknown' }
       })) as unknown as PetWithClient[]
-
       setPets(mapped)
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error fetching pets:', error)
-      }
+      console.error('Error fetching pets:', error)
     }
     setLoading(false)
   }, [])
@@ -74,7 +65,6 @@ export default function PetsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-[1300px] pb-24 md:pb-8">
-      {!isPocketBaseConfigured && <SetupBanner />}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -184,7 +174,10 @@ export default function PetsPage() {
       {showModal && (
         <AddPetModal
           onClose={() => setShowModal(false)}
-          onSuccess={fetchPets}
+          onSuccess={() => {
+            fetchPets()
+            router.refresh()
+          }}
         />
       )}
     </div>

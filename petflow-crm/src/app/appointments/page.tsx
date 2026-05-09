@@ -1,55 +1,33 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar as CalendarIcon, Plus, Search, MapPin, Clock, MoreVertical, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
-import SetupBanner from '@/components/SetupBanner'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Appointment, AppointmentStatus } from '@/types'
-import { statusStyles } from '@/types'
+import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [view, setView] = useState<'today' | 'tomorrow' | 'week' | 'all'>('today')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const router = useRouter()
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
-    if (!isPocketBaseConfigured) { setLoading(false); return }
-
-    // Building the date range query
-    const today = new Date().toISOString().split('T')[0]
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
-    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
-
     try {
-      let filter = ''
-      if (view === 'today') filter = `appointment_date ~ "${today}"`
-      else if (view === 'tomorrow') filter = `appointment_date ~ "${tomorrow}"`
-      else if (view === 'week') filter = `appointment_date >= "${today} 00:00:00" && appointment_date <= "${nextWeek} 23:59:59"`
-
-      const records = await pb.collection('appointments').getFullList({
-        filter,
-        sort: 'appointment_date,appointment_time',
-        expand: 'pet_id,pet_id.owner_id',
-      })
-      
-      const mapped = records.map(record => ({
-        ...record,
-        pets: record.expand?.pet_id ? {
-          ...record.expand.pet_id,
-          clients: record.expand.pet_id.expand?.owner_id ? {
-            name: record.expand.pet_id.expand.owner_id.name
-          } : undefined
-        } : undefined
+      const data = await getAppointments(view)
+      const mapped = data.map((appt: any) => ({
+        ...appt,
+        pets: {
+          ...appt.pet,
+          clients: appt.pet.owner
+        }
       })) as unknown as Appointment[]
-
       setAppointments(mapped)
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error fetching appointments:', error)
-      }
+      console.error('Error fetching appointments:', error)
     }
     setLoading(false)
   }, [view])
@@ -58,13 +36,11 @@ export default function AppointmentsPage() {
 
   const updateStatus = async (id: string, newStatus: AppointmentStatus) => {
     try {
-      await pb.collection('appointments').update(id, { status: newStatus })
+      await updateAppointmentStatus(id, newStatus)
       fetchAppointments()
+      router.refresh()
     } catch (error: any) {
       console.error('Error updating status:', error)
-      if (error.data) {
-        console.error('Validation errors:', JSON.stringify(error.data, null, 2))
-      }
     }
   }
 
@@ -75,8 +51,6 @@ export default function AppointmentsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-[1100px] pb-24 md:pb-8">
-      {!isPocketBaseConfigured && <SetupBanner />}
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -200,7 +174,10 @@ export default function AppointmentsPage() {
       {showModal && (
         <BookAppointmentModal
           onClose={() => setShowModal(false)}
-          onSuccess={fetchAppointments}
+          onSuccess={() => {
+            fetchAppointments()
+            router.refresh()
+          }}
         />
       )}
     </div>

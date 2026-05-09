@@ -3,42 +3,32 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Sparkles, Plus, Search, Filter } from 'lucide-react'
 import KanbanBoard from '@/components/KanbanBoard'
-import SetupBanner from '@/components/SetupBanner'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Appointment, AppointmentStatus } from '@/types'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
+import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 export default function PetCRMPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const router = useRouter()
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
-    if (!isPocketBaseConfigured) { setLoading(false); return }
-
     try {
-      const records = await pb.collection('appointments').getFullList({
-        sort: '-appointment_date,appointment_time',
-        expand: 'pet_id,pet_id.owner_id',
-      })
-      
-      // Map PocketBase expand to our Appointment type
-      const mapped = records.map(record => ({
-        ...record,
-        pets: record.expand?.pet_id ? {
-          ...record.expand.pet_id,
-          clients: record.expand.pet_id.expand?.owner_id ? {
-            name: record.expand.pet_id.expand.owner_id.name
-          } : undefined
-        } : undefined
+      const data = await getAppointments()
+      // Map Prisma include to our Appointment type
+      const mapped = data.map((appt: any) => ({
+        ...appt,
+        pets: {
+          ...appt.pet,
+          clients: appt.pet.owner
+        }
       })) as unknown as Appointment[]
-
       setAppointments(mapped)
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error fetching appointments:', error)
-      }
+      console.error('Error fetching appointments:', error)
     }
     setLoading(false)
   }, [])
@@ -54,21 +44,15 @@ export default function PetCRMPage() {
     )
 
     try {
-      await pb.collection('appointments').update(id, { status: newStatus })
+      await updateAppointmentStatus(id, newStatus)
     } catch (error: any) {
       console.error('Error updating status:', error)
-      if (error.data) {
-        console.error('Validation errors:', JSON.stringify(error.data, null, 2))
-      }
       fetchAppointments() // Revert if failed
     }
   }
 
-
   return (
     <div className="p-4 md:p-8 max-w-[100vw] pb-24 md:pb-8">
-      {!isPocketBaseConfigured && <SetupBanner />}
-      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -130,7 +114,10 @@ export default function PetCRMPage() {
       {showModal && (
         <BookAppointmentModal
           onClose={() => setShowModal(false)}
-          onSuccess={fetchAppointments}
+          onSuccess={() => {
+            fetchAppointments()
+            router.refresh()
+          }}
         />
       )}
     </div>

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { X, Calendar, Search, User, PawPrint, Clock, IndianRupee } from 'lucide-react'
-import { pb } from '@/lib/pocketbase'
 import type { Client, Pet, Service } from '@/types'
+import { getServices, getClients, createAppointment } from '@/lib/actions'
 
 interface Props {
   onClose: () => void
@@ -28,9 +28,7 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    pb.collection('services').getFullList({
-      sort: 'service_name',
-    }).then((records) => {
+    getServices().then((records) => {
       setServices(records as unknown as Service[])
       if (records.length > 0) {
         setForm(f => ({ ...f, service_type: records[0].service_name, price: records[0].price.toString() }))
@@ -40,15 +38,8 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
 
   useEffect(() => {
     if (search.length > 1) {
-      pb.collection('clients').getList(1, 10, {
-        filter: `name ~ "${search}"`,
-        expand: 'pets(owner_id)'
-      }).then((result) => {
-        const mapped = result.items.map(record => ({
-          ...record,
-          pets: record.expand?.['pets(owner_id)'] || []
-        }))
-        setClients(mapped as any)
+      getClients(search).then((result) => {
+        setClients(result as any)
       }).catch(err => console.error('Error searching clients:', err))
     } else {
       setClients([])
@@ -76,7 +67,7 @@ export default function BookAppointmentModal({ onClose, onSuccess }: Props) {
     setError('')
 
     try {
-      await pb.collection('appointments').create({
+      await createAppointment({
         pet_id: form.pet_id,
         service_type: form.service_type,
         appointment_date: form.appointment_date,

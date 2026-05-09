@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Client {
+  id              String        @id @default(cuid())
+  name            String
+  whatsapp_number String?
+  email           String?
+  address         String?
+  total_spend     Float?        @default(0)
+  join_date       DateTime?     @default(now())
+  created         DateTime      @default(now())
+  updated         DateTime      @updatedAt
+  pets            Pet[]
+}
+
+model Pet {
+  id                String        @id @default(cuid())
+  pet_name          String
+  species           String?       // dog, cat, other
+  breed             String?
+  weight            Float?
+  temperament_notes String?
+  medical_alerts    String?
+  photo             String?
+  owner_id          String
+  owner             Client        @relation(fields: [owner_id], references: [id])
+  appointments      Appointment[]
+  created           DateTime      @default(now())
+  updated           DateTime      @updatedAt
+}
+
+model Service {
+  id           String   @id @default(cuid())
+  service_name String
+  pet_type     String?  // dog, cat, other, all
+  description  String?
+  price        Float
+  thumbnail    String?
+  created      DateTime @default(now())
+  updated      DateTime @updatedAt
+}
+
+model Appointment {
+  id               String   @id @default(cuid())
+  pet_id           String
+  pet              Pet      @relation(fields: [pet_id], references: [id])
+  service_type     String
+  appointment_date String
+  appointment_time String
+  status           String   @default("Booked") // Lead, Booked, CheckedIn, InService, Done, CheckedOut, Cancelled, No-show
+  price            Float?
+  notes            String?
+  created          DateTime @default(now())
+  updated          DateTime @updatedAt
+}
+
+model Settings {
+  id              String   @id @default(cuid())
+  spa_name        String
+  spa_whatsapp    String?
+  spa_email       String?
+  spa_address     String?
+  business_hours  Json?
+  currency_symbol String?  @default("₹")
+  created         DateTime @default(now())
+  updated         DateTime @updatedAt
+}
+
+model WhatsAppConfig {
+  id                String   @id @default(cuid())
+  evolution_api_url String?
+  evolution_api_key String?
+  instance_name     String?
+  openai_api_key    String?
+  agent_public_url  String?
+  booking_link      String?
+  spa_name          String?
+  created           DateTime @default(now())
+  updated           DateTime @updatedAt
+}

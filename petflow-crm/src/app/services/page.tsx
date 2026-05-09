@@ -1,41 +1,38 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Tag, Trash2, Edit3, IndianRupee, Sparkles } from 'lucide-react'
+import { Plus, Search, Tag, Trash2, Sparkles } from 'lucide-react'
 import AddServiceModal from '@/components/AddServiceModal'
-import SetupBanner from '@/components/SetupBanner'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Service } from '@/types'
+import { getServices, deleteService as deleteServiceAction } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const router = useRouter()
 
   const fetchServices = useCallback(async () => {
     setLoading(true)
-    if (!isPocketBaseConfigured) { setLoading(false); return }
     try {
-      const records = await pb.collection('services').getFullList({
-        sort: '-created',
-      })
-      setServices(records as unknown as Service[])
+      const data = await getServices()
+      setServices(data as unknown as Service[])
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error fetching services:', error)
-      }
+      console.error('Error fetching services:', error)
     }
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchServices() }, [fetchServices])
 
-  const deleteService = async (id: string) => {
+  const handleDeleteService = async (id: string) => {
     if (!confirm('Are you sure you want to delete this service?')) return
     try {
-      await pb.collection('services').delete(id)
+      await deleteServiceAction(id)
       fetchServices()
+      router.refresh()
     } catch (error) {
       console.error('Error deleting service:', error)
     }
@@ -51,9 +48,6 @@ export default function ServicesPage() {
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
-      {!isPocketBaseConfigured && <SetupBanner />}
-
-      
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -115,7 +109,7 @@ export default function ServicesPage() {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                    <button 
-                     onClick={() => deleteService(service.id)}
+                     onClick={() => handleDeleteService(service.id)}
                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                    >
                      <Trash2 size={16} />
@@ -153,7 +147,10 @@ export default function ServicesPage() {
       {showAddModal && (
         <AddServiceModal
           onClose={() => setShowAddModal(false)}
-          onSuccess={fetchServices}
+          onSuccess={() => {
+            fetchServices()
+            router.refresh()
+          }}
         />
       )}
     </div>

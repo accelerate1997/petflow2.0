@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, User } from 'lucide-react'
-import { pb } from '@/lib/pocketbase'
+import { createClient } from '@/lib/actions'
 
 interface Props {
   onClose: () => void
@@ -26,7 +26,7 @@ export default function AddClientModal({ onClose, onSuccess }: Props) {
     setLoading(true)
     setError('')
     try {
-      await pb.collection('clients').create({
+      await createClient({
         name: form.name.trim(),
         whatsapp_number: form.whatsapp_number || null,
         email: form.email || null,

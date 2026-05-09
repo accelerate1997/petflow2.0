@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Sparkles, Image as ImageIcon, IndianRupee, Tag } from 'lucide-react'
-import { pb } from '@/lib/pocketbase'
+import { X, IndianRupee, Tag } from 'lucide-react'
+import { createService } from '@/lib/actions'
 
 interface Props {
   onClose: () => void
@@ -29,7 +29,7 @@ export default function AddServiceModal({ onClose, onSuccess }: Props) {
     setError('')
 
     try {
-      await pb.collection('services').create({
+      await createService({
         service_name: form.service_name,
         pet_type: form.pet_type,
         description: form.description || null,

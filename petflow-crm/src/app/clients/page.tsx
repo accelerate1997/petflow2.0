@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Phone, Mail, MapPin, PawPrint, Trash2, ChevronDown, ChevronUp, IndianRupee } from 'lucide-react'
+import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import AddClientModal from '@/components/AddClientModal'
 import AddPetModal from '@/components/AddPetModal'
-import SetupBanner from '@/components/SetupBanner'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
 import type { Client, Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
+import { getClients, deleteClient as deleteClientAction } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 type ClientWithPets = Client & { pets: Pet[] }
 
@@ -20,27 +20,15 @@ export default function ClientsPage() {
   const [showAddPet, setShowAddPet] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>()
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const router = useRouter()
 
   const fetchClients = useCallback(async () => {
     setLoading(true)
-    if (!isPocketBaseConfigured) { setLoading(false); return }
-
     try {
-      const records = await pb.collection('clients').getFullList({
-        sort: '-created',
-        expand: 'pets(owner_id)',
-      })
-      
-      const mapped = records.map(record => ({
-        ...record,
-        pets: record.expand?.['pets(owner_id)'] || []
-      })) as unknown as ClientWithPets[]
-
-      setClients(mapped)
+      const data = await getClients()
+      setClients(data as any)
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error fetching clients:', error)
-      }
+      console.error('Error fetching clients:', error)
     }
     setLoading(false)
   }, [])
@@ -60,11 +48,12 @@ export default function ClientsPage() {
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
-  const deleteClient = async (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     if (!confirm('Delete this client and all their pets?')) return
     try {
-      await pb.collection('clients').delete(id)
+      await deleteClientAction(id)
       fetchClients()
+      router.refresh()
     } catch (error) {
       console.error('Error deleting client:', error)
     }
@@ -74,8 +63,6 @@ export default function ClientsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-[1200px] pb-24 md:pb-8">
-      {!isPocketBaseConfigured && <SetupBanner />}
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -199,7 +186,7 @@ export default function ClientsPage() {
                           <Plus size={13} /> Add Pet
                         </button>
                         <button
-                          onClick={() => deleteClient(client.id)}
+                          onClick={() => handleDeleteClient(client.id)}
                           style={{ background: '#fef2f2', border: '1.5px solid #fecaca', color: '#ef4444', borderRadius: '0.625rem', padding: '0.3rem 0.75rem', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                         >
                           <Trash2 size={13} /> Delete
@@ -248,14 +235,20 @@ export default function ClientsPage() {
       {showAddClient && (
         <AddClientModal
           onClose={() => setShowAddClient(false)}
-          onSuccess={fetchClients}
+          onSuccess={() => {
+            fetchClients()
+            router.refresh()
+          }}
         />
       )}
 
       {showAddPet && (
         <AddPetModal
           onClose={() => { setShowAddPet(false); setSelectedClientId(undefined) }}
-          onSuccess={fetchClients}
+          onSuccess={() => {
+            fetchClients()
+            router.refresh()
+          }}
           preselectedOwnerId={selectedClientId}
         />
       )}

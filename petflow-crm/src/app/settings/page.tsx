@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, ExternalLink, Wifi, WifiOff, QrCode, Loader2, Eye, EyeOff } from 'lucide-react'
-import { pb, isPocketBaseConfigured } from '@/lib/pocketbase'
+import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2 } from 'lucide-react'
 import type { Settings, BusinessHours } from '@/types'
+import { getSettings, updateSettings, getWhatsAppConfig, updateWhatsAppConfig } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 
 const days = [
   { id: 'mon', label: 'Monday' },
@@ -21,9 +22,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const router = useRouter()
 
   // WhatsApp Integration state
   const [waConfig, setWaConfig] = useState({
+    id: '',
     evolution_api_url: '',
     evolution_api_key: '',
     instance_name: '',
@@ -37,18 +40,16 @@ export default function SettingsPage() {
   const [waQrCode, setWaQrCode] = useState<string | null>(null)
   const [showQrModal, setShowQrModal] = useState(false)
   const [waChecking, setWaChecking] = useState(false)
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [waSaving, setWaSaving] = useState(false)
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  const fetchSettings = async () => {
-    if (!isPocketBaseConfigured) { setLoading(false); return }
+  const fetchSettingsData = async () => {
+    setLoading(true)
     try {
-      const record = await pb.collection('settings').getFirstListItem('')
-      if (record) setSettings(record as unknown as Settings)
-    } catch (error: any) {
-      // If 404, it just means no record exists yet, which is fine
-      if (error.status === 404) {
+      const data = await getSettings()
+      if (data) {
+        setSettings(data as unknown as Settings)
+      } else {
         setSettings({
           id: '',
           spa_name: 'Pet Flow Spa',
@@ -63,40 +64,38 @@ export default function SettingsPage() {
           updated_at: new Date().toISOString()
         } as Settings)
       }
+    } catch (error: any) {
       console.error('Error fetching settings:', error)
     }
     setLoading(false)
   }
 
-  const loadWhatsAppConfig = async () => {
-    if (!isPocketBaseConfigured) return
+  const loadWhatsAppConfigData = async () => {
     try {
-      const record = await pb.collection('whatsapp_config').getFirstListItem('')
-      if (record) {
+      const data = await getWhatsAppConfig()
+      if (data) {
         setWaConfig({
-          evolution_api_url: record.evolution_api_url || '',
-          evolution_api_key: record.evolution_api_key || '',
-          instance_name: record.instance_name || '',
-          openai_api_key: record.openai_api_key || '',
-          agent_public_url: record.agent_public_url || '',
-          booking_link: record.booking_link || '',
-          spa_name: record.spa_name || '',
+          id: data.id,
+          evolution_api_url: data.evolution_api_url || '',
+          evolution_api_key: data.evolution_api_key || '',
+          instance_name: data.instance_name || '',
+          openai_api_key: data.openai_api_key || '',
+          agent_public_url: data.agent_public_url || '',
+          booking_link: data.booking_link || '',
+          spa_name: data.spa_name || '',
         })
-        if (record.evolution_api_url && record.evolution_api_key && record.instance_name) {
-          checkWhatsAppStatus(record.evolution_api_url, record.evolution_api_key, record.instance_name)
+        if (data.evolution_api_url && data.evolution_api_key && data.instance_name) {
+          checkWhatsAppStatus(data.evolution_api_url, data.evolution_api_key, data.instance_name)
         }
       }
     } catch (error: any) {
-      if (!error.isAbort) {
-        console.error('Error loading WhatsApp config:', error)
-      }
+      console.error('Error loading WhatsApp config:', error)
     }
   }
 
-
   useEffect(() => {
-    fetchSettings()
-    loadWhatsAppConfig()
+    fetchSettingsData()
+    loadWhatsAppConfigData()
   }, [])
 
   const checkWhatsAppStatus = async (url?: string, key?: string, instance?: string) => {
@@ -196,7 +195,6 @@ export default function SettingsPage() {
           // Stop polling after 2 minutes
           setTimeout(() => clearInterval(pollInterval), 120000)
         } else {
-          // Might already be connected
           await checkWhatsAppStatus()
           if (!waConnected) {
             setWaMessage({ type: 'error', text: 'Could not get QR code. Instance may already be connected.' })
@@ -237,31 +235,12 @@ export default function SettingsPage() {
     setWaMessage(null)
 
     try {
-      let record;
-      try {
-        record = await pb.collection('whatsapp_config').getFirstListItem('')
-      } catch (e) {
-        // Not found, create it
-      }
-
-      const data = {
-        evolution_api_url: waConfig.evolution_api_url,
-        evolution_api_key: waConfig.evolution_api_key,
-        instance_name: waConfig.instance_name,
-        openai_api_key: waConfig.openai_api_key,
-        agent_public_url: waConfig.agent_public_url,
-        booking_link: waConfig.booking_link,
-        spa_name: waConfig.spa_name,
-      };
-
-      if (record) {
-        await pb.collection('whatsapp_config').update(record.id, data)
-      } else {
-        await pb.collection('whatsapp_config').create(data)
-      }
-
+      const { id, ...data } = waConfig
+      await updateWhatsAppConfig(id || null, data)
       setWaMessage({ type: 'success', text: 'WhatsApp configuration saved! ✅' })
       setTimeout(() => setWaMessage(null), 3000)
+      loadWhatsAppConfigData()
+      router.refresh()
     } catch (error: any) {
       setWaMessage({ type: 'error', text: error.message || 'Error saving config' })
     }
@@ -274,45 +253,19 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const data = {
-        spa_name: settings.spa_name,
-        spa_whatsapp: settings.spa_whatsapp,
-        spa_email: settings.spa_email,
-        spa_address: settings.spa_address,
-        business_hours: settings.business_hours,
-        currency_symbol: settings.currency_symbol,
-      };
-
-      let record;
-      try {
-        record = await pb.collection('settings').getFirstListItem('')
-      } catch (e) {
-        // Not found
-      }
-
-      if (record) {
-        await pb.collection('settings').update(record.id, data)
-      } else {
-        await pb.collection('settings').create(data)
-      }
-
+      const { id, updated_at, ...data } = settings as any
+      await updateSettings(id || null, data)
       setMessage({ type: 'success', text: 'Settings saved successfully!' })
       setTimeout(() => setMessage(null), 3000)
-      fetchSettings() // Refresh to get the real ID
+      fetchSettingsData()
+      router.refresh()
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Error saving settings' })
     }
     setSaving(false)
   }
 
-
-
-  const toggleShowKey = (field: string) => {
-    setShowKeys(prev => ({ ...prev, [field]: !prev[field] }))
-  }
-
   if (loading) return <div className="p-10 animate-pulse text-gray-400">Loading settings...</div>
-
 
   return (
     <div className="p-4 md:p-8 max-w-[1000px] pb-24 md:pb-8">
@@ -351,7 +304,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tabs - Scrollable on mobile */}
+      {/* Tabs */}
       <div className="flex gap-1 mb-8 bg-gray-50 p-1 rounded-xl border border-gray-100 w-full md:w-fit overflow-x-auto hide-scrollbar">
         {[
           { id: 'profile', label: 'Profile', icon: User },
@@ -503,11 +456,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ─── WhatsApp Integration Tab ─── */}
         {activeTab === 'whatsapp' && (
           <div className="flex flex-col gap-6">
-
-            {/* WhatsApp Message Banner */}
             {waMessage && (
               <div 
                 className={`p-4 rounded-xl flex items-center gap-3 border ${
@@ -519,7 +469,6 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* ── Connection Status Card ── */}
             <div 
               className="card"
               style={{ 
@@ -529,14 +478,12 @@ export default function SettingsPage() {
                 boxShadow: waConnected ? '0 8px 24px rgba(37,211,102,0.08)' : undefined,
               }}
             >
-              {/* Top accent bar */}
               {waConnected && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#25D366' }} />
               )}
 
               <div style={{ padding: '1.75rem' }}>
                 <div className="flex items-start gap-4 mb-5">
-                  {/* WhatsApp Icon */}
                   <div 
                     className="flex items-center justify-center flex-shrink-0"
                     style={{
@@ -560,7 +507,25 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Connection Info (if connected) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">API URL</label>
+                    <input
+                      className="input-field text-sm"
+                      value={waConfig.evolution_api_url}
+                      onChange={e => setWaConfig({ ...waConfig, evolution_api_url: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Instance Name</label>
+                    <input
+                      className="input-field text-sm"
+                      value={waConfig.instance_name}
+                      onChange={e => setWaConfig({ ...waConfig, instance_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 {waConnected && waConfig.instance_name && (
                   <div 
                     className="mb-5"
@@ -583,32 +548,18 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
                 <div className="flex gap-3">
                   {waConnected ? (
                     <>
                       <button
                         onClick={handleWhatsAppDisconnect}
-                        style={{
-                          flex: 1, padding: '0.75rem', borderRadius: 12,
-                          border: '1px solid #e5e7eb', background: 'white',
-                          fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
-                          transition: 'all 0.2s', color: '#6b7280',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                        className="btn-outline flex-1 py-3"
                       >
                         Disconnect
                       </button>
                       <button
                         onClick={() => checkWhatsAppStatus()}
-                        style={{
-                          flex: 1, padding: '0.75rem', borderRadius: 12,
-                          border: '1px solid #e5e7eb', background: '#f9fafb',
-                          fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          color: '#111',
-                        }}
+                        className="btn-outline flex-1 py-3 flex items-center justify-center gap-2"
                       >
                         {waChecking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                         Check Status
@@ -623,7 +574,6 @@ export default function SettingsPage() {
                         background: '#25D366', borderRadius: 14, color: 'white',
                         fontWeight: 700, fontSize: '0.9rem', cursor: waStatus === 'connecting' ? 'wait' : 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        opacity: waStatus === 'connecting' ? 0.8 : 1, transition: 'all 0.3s',
                         boxShadow: '0 8px 20px rgba(37,211,102,0.25)',
                       }}
                     >
@@ -638,13 +588,11 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Save Button */}
             <div className="flex justify-end">
               <button
-                className="btn-sage"
+                className="btn-sage min-w-[200px]"
                 onClick={handleSaveWhatsAppConfig}
                 disabled={waSaving}
-                style={{ minWidth: 200 }}
               >
                 {waSaving ? (
                   <><Loader2 size={16} className="animate-spin" /> Saving...</>
@@ -657,83 +605,40 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* ─── QR Code Modal ─── */}
       {showQrModal && (
         <div 
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)',
-            backdropFilter: 'blur(8px)', zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-          }}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowQrModal(false) }}
         >
-          <div style={{
-            background: 'white', borderRadius: 24, width: '100%', maxWidth: 420,
-            boxShadow: '0 20px 50px rgba(0,0,0,0.15)', overflow: 'hidden', padding: '2rem',
-            textAlign: 'center',
-          }}>
-            {/* WhatsApp icon */}
-            <div 
-              className="flex items-center justify-center mx-auto mb-4"
-              style={{
-                width: 56, height: 56, borderRadius: 16,
-                background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.2)',
-              }}
-            >
+          <div className="bg-white rounded-[24px] w-full max-w-[420px] shadow-2xl overflow-hidden p-8 text-center">
+            <div className="flex items-center justify-center mx-auto mb-4 w-14 h-14 rounded-[16px] bg-[#25D366]/10 border border-[#25D366]/20">
               <MessageSquare size={28} color="#25D366" />
             </div>
 
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.4rem' }}>Connect WhatsApp</h2>
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+            <h2 className="text-[1.4rem] font-800 mb-1">Connect WhatsApp</h2>
+            <p className="text-gray-500 text-sm mb-6">
               Scan the QR code below with your WhatsApp mobile app to link your account.
             </p>
 
-            {/* QR Code Area */}
-            <div style={{
-              background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 16,
-              padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              minHeight: 260, marginBottom: '1.5rem',
-            }}>
+            <div className="bg-gray-50 border border-gray-100 rounded-[16px] p-6 flex items-center justify-center min-h-[260px] mb-6">
               {waQrCode ? (
-                <img src={waQrCode} alt="WhatsApp QR Code" style={{ width: '100%', maxWidth: 220, borderRadius: 8 }} />
+                <img src={waQrCode} alt="WhatsApp QR Code" className="w-full max-w-[220px] rounded-lg" />
               ) : (
-                <div style={{ color: '#9ca3af' }} className="flex flex-col items-center gap-3">
-                  {waStatus === 'connecting' ? (
-                    <>
-                      <Loader2 size={36} className="animate-spin" style={{ color: '#25D366' }} />
-                      <span>Generating QR code...</span>
-                    </>
-                  ) : (
-                    <>
-                      <QrCode size={36} />
-                      <span>Waiting for QR code...</span>
-                    </>
-                  )}
+                <div className="text-gray-400 flex flex-col items-center gap-3">
+                  <Loader2 size={36} className="animate-spin text-[#25D366]" />
+                  <span className="text-sm">Generating QR code...</span>
                 </div>
               )}
             </div>
 
-            {/* Status indicator */}
-            <div className="flex items-center justify-center gap-2 mb-4" style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-              <span style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: waQrCode ? '#fbbf24' : waStatus === 'connected' ? '#25D366' : '#94a3b8',
-                display: 'inline-block',
-                animation: waQrCode ? 'pulse 1.5s ease-in-out infinite' : undefined,
-              }} />
-              {waStatus === 'connected' ? 'Connected!' : waQrCode ? 'Awaiting scan...' : 'Initializing...'}
+            <div className="flex items-center justify-center gap-2 mb-6 text-xs text-gray-500">
+              <span className={`w-2 h-2 rounded-full ${waQrCode ? 'bg-amber-400 animate-pulse' : 'bg-gray-300'}`} />
+              {waQrCode ? 'Awaiting scan...' : 'Initializing...'}
             </div>
 
-            {/* Close button */}
             <button
               onClick={() => setShowQrModal(false)}
-              style={{
-                width: '100%', padding: '0.875rem', borderRadius: 12,
-                border: '1px solid #e5e7eb', background: 'white',
-                fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              className="btn-outline w-full py-3"
             >
               Close
             </button>

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, PawPrint, Upload } from 'lucide-react'
-import { pb } from '@/lib/pocketbase'
 import type { Client } from '@/types'
+import { getClients, createPet } from '@/lib/actions'
 
 interface Props {
   onClose: () => void
@@ -21,28 +21,16 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
     temperament_notes: '',
     medical_alerts: '',
     owner_id: preselectedOwnerId || '',
+    photo_url: '',
   })
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    pb.collection('clients').getFullList({
-      sort: 'name',
-      fields: 'id,name'
-    }).then((records) => {
+    getClients().then((records) => {
       setClients(records as unknown as Client[])
     }).catch(err => console.error('Error fetching clients:', err))
   }, [])
-
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,20 +40,16 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
     setError('')
 
     try {
-      const formData = new FormData()
-      formData.append('pet_name', form.pet_name.trim())
-      formData.append('species', form.species)
-      formData.append('breed', form.breed || '')
-      formData.append('weight', form.weight || '0')
-      formData.append('temperament_notes', form.temperament_notes || '')
-      formData.append('medical_alerts', form.medical_alerts || '')
-      formData.append('owner_id', form.owner_id)
-      
-      if (photoFile) {
-        formData.append('photo', photoFile)
-      }
-
-      await pb.collection('pets').create(formData)
+      await createPet({
+        pet_name: form.pet_name.trim(),
+        species: form.species,
+        breed: form.breed || '',
+        weight: parseFloat(form.weight || '0'),
+        temperament_notes: form.temperament_notes || '',
+        medical_alerts: form.medical_alerts || '',
+        owner_id: form.owner_id,
+        photo_url: form.photo_url || '',
+      })
       onSuccess()
       onClose()
     } catch (err: any) {
@@ -73,7 +57,6 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
     }
     setLoading(false)
   }
-
 
   const temperamentOptions = ['Friendly', 'Calm', 'Anxious', 'Aggressive']
 
@@ -98,27 +81,14 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
           </div>
         )}
 
-        {/* Photo Upload */}
-        <div className="flex items-center gap-4 mb-5">
-          <div
-            onClick={() => fileRef.current?.click()}
-            style={{
-              width: 80, height: 80, borderRadius: '1rem', cursor: 'pointer',
-              background: photoPreview ? `url(${photoPreview}) center/cover no-repeat` : 'var(--sage-muted)',
-              border: '2px dashed var(--sage-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}
-          >
-            {!photoPreview && <Upload size={20} style={{ color: 'var(--sage)' }} />}
-          </div>
-          <div>
-            <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>Pet Photo</p>
-            <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Click to upload (optional)</p>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhoto} />
-        </div>
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.375rem' }}>
+              Photo URL (optional)
+            </label>
+            <input className="input-field" placeholder="https://example.com/pet.jpg" value={form.photo_url} onChange={e => setForm({ ...form, photo_url: e.target.value })} />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.375rem' }}>
