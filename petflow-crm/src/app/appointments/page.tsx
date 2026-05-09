@@ -106,46 +106,37 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="bg-white rounded-2xl p-3 md:p-4 shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 mb-2 group relative overflow-hidden">
-              {/* Header: Pet Name & Time */}
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-sage-muted flex items-center justify-center text-xl shadow-inner border border-white">
+            <div key={apt.id} className="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 mb-1.5 group relative overflow-hidden">
+              {/* Main Info Row */}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-sage-muted flex items-center justify-center text-lg flex-shrink-0 border border-white/50">
                     {speciesEmoji[apt.pets?.species || 'other']}
                   </div>
-                  <div>
-                    <h3 className="font-800 text-[1.1rem] text-gray-800 tracking-tight leading-none capitalize">
+                  <div className="min-w-0">
+                    <h3 className="font-800 text-[0.95rem] text-gray-800 tracking-tight leading-none truncate capitalize">
                       {apt.pets?.pet_name}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="px-2 py-0.5 rounded-lg bg-sage-muted/50 text-sage-dark text-[0.55rem] font-800 uppercase tracking-widest">
-                        {apt.service_type}
-                      </span>
-                    </div>
+                    <p className="text-[0.55rem] font-700 text-sage-dark/60 uppercase tracking-widest mt-0.5 truncate">{apt.service_type}</p>
                   </div>
                 </div>
-                <div className="bg-gray-800 text-white px-3 py-1.5 rounded-xl shadow-md transform group-hover:scale-105 transition-transform">
-                  <p className="font-800 text-[0.8rem] leading-none mb-0.5">{apt.appointment_time.slice(0, 5)}</p>
-                  <p className="text-[0.45rem] font-700 opacity-60 uppercase tracking-widest text-center">
+                <div className="bg-gray-800 text-white px-2 py-1 rounded-lg shadow-sm flex-shrink-0 text-center min-w-[55px]">
+                  <p className="font-800 text-[0.7rem] leading-none">{apt.appointment_time.slice(0, 5)}</p>
+                  <p className="text-[0.4rem] font-700 opacity-60 uppercase tracking-tighter mt-0.5">
                     {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </p>
                 </div>
               </div>
 
-              {/* Middle: Client Info - More Compact */}
-              <div className="flex items-center gap-2.5 mb-3 pl-0.5">
-                <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
-                  <User size={10} className="text-gray-400" />
-                </div>
-                <div>
-                  <p className="text-[0.5rem] text-gray-400 font-800 uppercase tracking-widest mb-0">Pet Parent</p>
-                  <p className="text-[0.75rem] font-700 text-gray-700 leading-none">{apt.pets?.clients?.name}</p>
-                </div>
-              </div>
-
-              {/* Footer: Payment & Actions - Tighter */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                <div className="flex items-center gap-3">
+              {/* Bottom Details Row */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50/50">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 border border-gray-100">
+                    <User size={8} className="text-gray-400" />
+                  </div>
+                  <span className="text-[0.65rem] font-700 text-gray-500 truncate">{apt.pets?.clients?.name}</span>
+                  
+                  {/* Compact Payment Pill */}
                   <button 
                     type="button"
                     onClick={() => {
@@ -156,7 +147,7 @@ export default function AppointmentsPage() {
                         router.refresh()
                       })
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.6rem] font-900 transition-all border active:scale-95"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.5rem] font-900 border transition-all active:scale-95 ml-auto sm:ml-2"
                     style={{ 
                       backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
                                        apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
@@ -166,43 +157,41 @@ export default function AppointmentsPage() {
                                    apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
                     }}
                   >
-                    <span className="text-[1.1rem]">{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
-                    <span className="uppercase tracking-widest">{apt.payment_status}</span>
+                    <span>{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
+                    <span className="uppercase">{apt.payment_status}</span>
                   </button>
-                  <div className="hidden sm:block">
-                    <p className="text-[0.5rem] text-gray-400 font-800 uppercase tracking-widest">Fee</p>
-                    <p className="font-800 text-[0.95rem] text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
-                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <div className="text-right sm:hidden mr-1.5">
-                    <p className="font-800 text-[0.95rem] text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="text-right mr-1">
+                    <p className="font-800 text-[0.85rem] text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
                   </div>
-                  {apt.status === 'Booked' && (
-                    <>
+                  <div className="flex items-center gap-1">
+                    {apt.status === 'Booked' && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(apt.id, 'Done')}
+                          className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                        >
+                          <CheckCircle size={14} />
+                        </button>
+                        <button
+                          onClick={() => updateStatus(apt.id, 'Cancelled')}
+                          className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all border border-red-100"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      </>
+                    )}
+                    {apt.status !== 'Booked' && (
                       <button
-                        onClick={() => updateStatus(apt.id, 'Done')}
-                        className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                        onClick={() => updateStatus(apt.id, 'Booked')}
+                        className="px-2 py-1 rounded-lg bg-gray-900 text-white hover:bg-black transition-all text-[0.55rem] font-800 uppercase tracking-widest"
                       >
-                        <CheckCircle size={18} />
+                        Reschedule
                       </button>
-                      <button
-                        onClick={() => updateStatus(apt.id, 'Cancelled')}
-                        className="w-9 h-9 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all border border-red-100"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </>
-                  )}
-                  {apt.status !== 'Booked' && (
-                    <button
-                      onClick={() => updateStatus(apt.id, 'Booked')}
-                      className="px-4 py-2 rounded-xl bg-gray-900 text-white hover:bg-black transition-all text-[0.6rem] font-800 uppercase tracking-widest"
-                    >
-                      Reschedule
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -219,7 +208,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
-      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.9</div>
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.1.0</div>
     </div>
   )
 }
