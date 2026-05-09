@@ -11,18 +11,30 @@ export default async function DashboardPage() {
   const thisMonth = new Date()
 
   // Fetch all required data
-  const [petCount, allClients, todayAppointments] = await Promise.all([
-    prisma.pet.count(),
-    prisma.client.findMany({
-      select: { id: true, total_spend: true, join_date: true, name: true, created: true },
-      orderBy: { created: 'desc' }
-    }),
-    prisma.appointment.findMany({
-      where: { appointment_date: today },
-      include: { pet: true },
-      orderBy: { appointment_time: 'asc' }
-    })
-  ])
+  let petCount = 0
+  let allClients: any[] = []
+  let todayAppointments: any[] = []
+
+  try {
+    const results = await Promise.all([
+      prisma.pet.count(),
+      prisma.client.findMany({
+        select: { id: true, total_spend: true, join_date: true, name: true, created: true },
+        orderBy: { created: 'desc' }
+      }),
+      prisma.appointment.findMany({
+        where: { appointment_date: today },
+        include: { pet: true },
+        orderBy: { appointment_time: 'asc' }
+      })
+    ])
+    petCount = results[0]
+    allClients = results[1]
+    todayAppointments = results[2]
+  } catch (error) {
+    console.error('DASHBOARD_DATA_FETCH_ERROR:', error)
+    // Return a friendly error state or empty data
+  }
 
   // Calculate stats
   const totalRevenue = allClients.reduce((sum, c) => sum + (c.total_spend || 0), 0)
