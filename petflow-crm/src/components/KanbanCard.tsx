@@ -12,7 +12,7 @@ interface KanbanCardProps {
 
 const statusOrder: AppointmentStatus[] = ['Lead', 'Booked', 'CheckedIn', 'InService', 'Done', 'CheckOut']
 
-export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
+export default function KanbanCard({ appointment, onMove, onPaymentUpdate }: KanbanCardProps) {
   const currentIndex = statusOrder.indexOf(appointment.status)
   const nextStatus = currentIndex < statusOrder.length - 1 ? statusOrder[currentIndex + 1] : null
   const prevStatus = currentIndex > 0 ? statusOrder[currentIndex - 1] : null
@@ -57,11 +57,9 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
         <button 
           type="button"
           onClick={() => {
-            alert('BUTTON CLICKED');
             const statuses = ['Pending', 'Cash', 'UPI'];
             const nextIdx = (statuses.indexOf(appointment.payment_status) + 1) % statuses.length;
             const nextStatus = statuses[nextIdx];
-            alert('SETTING TO: ' + nextStatus);
             onPaymentUpdate(appointment.id, nextStatus);
           }}
           className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 text-[0.65rem] font-700 hover:bg-gray-100 transition-colors border border-gray-100"

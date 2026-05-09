@@ -69,7 +69,6 @@ export default function PetCRMPage() {
       console.log('Server update successful:', res);
       await fetchAppointments(true)
       router.refresh()
-      alert('Payment Updated Successfully!')
     } catch (error: any) {
       console.error('Error updating payment status:', error)
       alert('Error updating payment: ' + (error.message || 'Unknown error'))
