@@ -106,75 +106,46 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 md:gap-6 shadow-sm border border-gray-100/50 hover:shadow-lg transition-all duration-300 relative overflow-hidden mb-3">
-              {/* Accent Background Decoration */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-sage-muted/10 rounded-full -mr-12 -mt-12 opacity-50" />
-              
-              <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 flex-1 min-w-0">
-                {/* Time Block - Floating on Mobile, Fixed on Desktop */}
-                <div className="flex md:flex-col items-center justify-center p-2 rounded-xl bg-sage-muted text-sage-dark w-fit md:min-w-[80px] border border-sage/10 self-start md:self-auto">
-                  <p className="font-900 text-sm md:text-lg tracking-tighter leading-none">{apt.appointment_time.slice(0, 5)}</p>
-                  <p className="text-[0.55rem] md:text-[0.6rem] font-800 uppercase tracking-widest opacity-60 md:mt-1 ml-2 md:ml-0">
-                    {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </p>
-                </div>
-
-                {/* Pet Icon & Details with LARGE Mobile Spacing */}
-                <div className="flex items-start gap-8 md:gap-6 flex-1 min-w-0">
-                  <div className="w-12 h-12 md:w-12 md:h-12 rounded-xl bg-gray-50 border border-white shadow-sm flex items-center justify-center text-2xl flex-shrink-0 mt-1">
+            <div key={apt.id} className="bg-white rounded-[2rem] p-5 shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-500 mb-4 group relative overflow-hidden">
+              {/* Header: Pet Name & Time */}
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sage-muted flex items-center justify-center text-2xl shadow-inner border border-white">
                     {speciesEmoji[apt.pets?.species || 'other']}
                   </div>
-                  
-                  <div className="min-w-0 flex-1 pt-1">
-                    <div className="flex flex-col gap-1.5 mb-2">
-                      <h3 className="font-900 text-[1.1rem] md:text-[1.2rem] text-gray-800 tracking-tight truncate leading-none capitalize">
-                        {apt.pets?.pet_name}
-                      </h3>
-                      <span className="inline-block w-fit px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500 text-[0.55rem] font-800 uppercase tracking-widest border border-gray-200">
+                  <div>
+                    <h3 className="font-900 text-[1.25rem] text-gray-800 tracking-tight leading-none capitalize">
+                      {apt.pets?.pet_name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-sage-muted/50 text-sage-dark text-[0.6rem] font-800 uppercase tracking-widest">
                         {apt.service_type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
-                        <User size={10} className="opacity-40" />
-                      </div>
-                      <span className="text-[0.75rem] font-600 truncate opacity-90">{apt.pets?.clients?.name}</span>
-                    </div>
                   </div>
                 </div>
-
-                {/* Payment Status - Center Right (Hidden on mobile inside this flex, shown below) */}
-                <div className="hidden lg:block mx-4">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const statuses = ['Pending', 'Cash', 'UPI'];
-                      const nextIdx = (statuses.indexOf(apt.payment_status) + 1) % statuses.length;
-                      updatePaymentStatus(apt.id, statuses[nextIdx]).then(() => {
-                        fetchAppointments()
-                        router.refresh()
-                      })
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.6rem] font-900 transition-all border active:scale-95"
-                    style={{ 
-                      backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
-                                       apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
-                      color: apt.payment_status === 'Pending' ? '#9ca3af' : 
-                             apt.payment_status === 'Cash' ? '#059669' : '#2563eb',
-                      borderColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
-                                   apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
-                    }}
-                  >
-                    <span className="text-[0.8rem]">{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
-                    <span className="uppercase tracking-widest">{apt.payment_status}</span>
-                  </button>
+                <div className="bg-gray-800 text-white px-4 py-2 rounded-2xl shadow-lg transform group-hover:scale-105 transition-transform">
+                  <p className="font-900 text-[0.9rem] leading-none mb-0.5">{apt.appointment_time.slice(0, 5)}</p>
+                  <p className="text-[0.5rem] font-700 opacity-60 uppercase tracking-widest text-center">
+                    {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </p>
                 </div>
               </div>
 
-              {/* Bottom Row / Mobile Actions */}
-              <div className="flex items-center justify-between md:justify-end gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-gray-50">
-                {/* Mobile Payment Pill */}
-                <div className="lg:hidden">
+              {/* Middle: Client Info */}
+              <div className="flex items-center gap-3 mb-6 pl-1">
+                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
+                  <User size={12} className="text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-[0.55rem] text-gray-400 font-800 uppercase tracking-widest mb-0.5">Pet Parent</p>
+                  <p className="text-[0.85rem] font-700 text-gray-700">{apt.pets?.clients?.name}</p>
+                </div>
+              </div>
+
+              {/* Footer: Payment & Actions */}
+              <div className="flex items-center justify-between pt-5 border-t border-gray-50">
+                <div className="flex items-center gap-4">
                   <button 
                     type="button"
                     onClick={() => {
@@ -185,7 +156,7 @@ export default function AppointmentsPage() {
                         router.refresh()
                       })
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.6rem] font-900 border"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-[0.65rem] font-900 transition-all shadow-sm border active:scale-95"
                     style={{ 
                       backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
                                        apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
@@ -195,43 +166,43 @@ export default function AppointmentsPage() {
                                    apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
                     }}
                   >
-                    <span>{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
-                    <span className="uppercase">{apt.payment_status}</span>
+                    <span className="text-lg">{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
+                    <span className="uppercase tracking-widest">{apt.payment_status}</span>
                   </button>
+                  <div className="hidden sm:block">
+                    <p className="text-[0.55rem] text-gray-400 font-800 uppercase tracking-widest">Fee</p>
+                    <p className="font-900 text-lg text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4 md:gap-6">
-                  <div className="text-right">
-                    <p className="text-[0.5rem] text-gray-400 font-800 uppercase tracking-widest">Fee</p>
-                    <p className="font-900 text-[1.1rem] text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
+                <div className="flex items-center gap-2">
+                  <div className="text-right sm:hidden mr-2">
+                    <p className="font-900 text-lg text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price)}</p>
                   </div>
-
-                  <div className="flex gap-1.5">
-                    {apt.status === 'Booked' && (
-                      <>
-                        <button
-                          onClick={() => updateStatus(apt.id, 'Done')}
-                          className="p-2 md:p-2.5 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                        >
-                          <CheckCircle size={18} />
-                        </button>
-                        <button
-                          onClick={() => updateStatus(apt.id, 'Cancelled')}
-                          className="p-2 md:p-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                        >
-                          <XCircle size={18} />
-                        </button>
-                      </>
-                    )}
-                    {apt.status !== 'Booked' && (
+                  {apt.status === 'Booked' && (
+                    <>
                       <button
-                        onClick={() => updateStatus(apt.id, 'Booked')}
-                        className="px-3 py-2 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-800 hover:text-white transition-all text-[0.6rem] font-800 uppercase tracking-widest"
+                        onClick={() => updateStatus(apt.id, 'Done')}
+                        className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
                       >
-                        Reschedule
+                        <CheckCircle size={20} />
                       </button>
-                    )}
-                  </div>
+                      <button
+                        onClick={() => updateStatus(apt.id, 'Cancelled')}
+                        className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"
+                      >
+                        <XCircle size={20} />
+                      </button>
+                    </>
+                  )}
+                  {apt.status !== 'Booked' && (
+                    <button
+                      onClick={() => updateStatus(apt.id, 'Booked')}
+                      className="px-5 py-2.5 rounded-2xl bg-gray-900 text-white hover:bg-black transition-all text-[0.65rem] font-900 uppercase tracking-widest shadow-lg"
+                    >
+                      Reschedule
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -248,7 +219,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
-      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.7</div>
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.8</div>
     </div>
   )
 }
