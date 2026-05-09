@@ -54,16 +54,22 @@ export default function PetCRMPage() {
   }
 
   const handlePaymentUpdate = async (id: string, payment_status: string) => {
+    console.log(`Updating payment for ${id} to ${payment_status}`);
+    
     // Optimistic update
-    setAppointments(prev => 
-      prev.map(apt => apt.id === id ? { ...apt, payment_status } : apt)
-    )
+    setAppointments(prev => {
+      const next = prev.map(apt => apt.id === id ? { ...apt, payment_status } : apt);
+      console.log('New appointments state set optimistically');
+      return next;
+    });
 
     try {
       await updatePaymentStatus(id, payment_status)
+      console.log('Server update successful');
       router.refresh()
     } catch (error: any) {
       console.error('Error updating payment status:', error)
+      alert('Error updating payment: ' + (error.message || 'Unknown error'))
       fetchAppointments() // Revert if failed
     }
   }
