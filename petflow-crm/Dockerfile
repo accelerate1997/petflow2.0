@@ -18,7 +18,7 @@ RUN npm install
 RUN npx prisma generate
 
 # Build the app
-RUN npm run build
+RUN npm run build > build.log 2>&1 || (cat build.log && exit 1)
 
 # Expose port
 EXPOSE 3000
