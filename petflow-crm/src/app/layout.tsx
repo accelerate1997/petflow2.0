@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Sidebar from '@/components/Sidebar'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'PetFlow CRM — Pet Spa Management',
   description: 'Professional CRM for managing pet spa clients and their beloved pets.',
