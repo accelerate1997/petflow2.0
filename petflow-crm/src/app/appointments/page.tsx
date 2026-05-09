@@ -106,39 +106,39 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="bg-white rounded-2xl p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-5 shadow-sm border border-gray-100/50 hover:shadow-lg transition-all duration-300 relative overflow-hidden mb-2">
+            <div key={apt.id} className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4 md:gap-6 shadow-sm border border-gray-100/50 hover:shadow-lg transition-all duration-300 relative overflow-hidden mb-3">
               {/* Accent Background Decoration */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-sage-muted/10 rounded-full -mr-12 -mt-12 opacity-50" />
               
-              <div className="flex items-center gap-3 md:gap-5 flex-1 min-w-0">
-                {/* Time Block - Compact */}
-                <div className="flex flex-col items-center justify-center p-2 md:p-3 rounded-xl bg-sage-muted text-sage-dark min-w-[70px] md:min-w-[80px] border border-sage/5">
+              <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 flex-1 min-w-0">
+                {/* Time Block - Floating on Mobile, Fixed on Desktop */}
+                <div className="flex md:flex-col items-center justify-center p-2 rounded-xl bg-sage-muted text-sage-dark w-fit md:min-w-[80px] border border-sage/10 self-start md:self-auto">
                   <p className="font-900 text-sm md:text-lg tracking-tighter leading-none">{apt.appointment_time.slice(0, 5)}</p>
-                  <p className="text-[0.5rem] md:text-[0.6rem] font-800 uppercase tracking-widest opacity-60 mt-1">
+                  <p className="text-[0.55rem] md:text-[0.6rem] font-800 uppercase tracking-widest opacity-60 md:mt-1 ml-2 md:ml-0">
                     {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </p>
                 </div>
 
-                {/* Pet Icon & Details with Mobile Spacing and Top Alignment */}
-                <div className="flex items-start gap-5 md:gap-6 flex-1 min-w-0">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-50 border border-white shadow-sm flex items-center justify-center text-xl md:text-2xl flex-shrink-0 mt-0.5">
+                {/* Pet Icon & Details with LARGE Mobile Spacing */}
+                <div className="flex items-start gap-8 md:gap-6 flex-1 min-w-0">
+                  <div className="w-12 h-12 md:w-12 md:h-12 rounded-xl bg-gray-50 border border-white shadow-sm flex items-center justify-center text-2xl flex-shrink-0 mt-1">
                     {speciesEmoji[apt.pets?.species || 'other']}
                   </div>
                   
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-1.5">
-                      <h3 className="font-800 text-[1rem] md:text-[1.15rem] text-gray-800 tracking-tight truncate leading-none capitalize">
+                  <div className="min-w-0 flex-1 pt-1">
+                    <div className="flex flex-col gap-1.5 mb-2">
+                      <h3 className="font-900 text-[1.1rem] md:text-[1.2rem] text-gray-800 tracking-tight truncate leading-none capitalize">
                         {apt.pets?.pet_name}
                       </h3>
-                      <span className="inline-block w-fit px-2 py-0.5 rounded-lg bg-sage-muted text-sage-dark text-[0.55rem] font-800 uppercase tracking-widest border border-sage/10">
+                      <span className="inline-block w-fit px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500 text-[0.55rem] font-800 uppercase tracking-widest border border-gray-200">
                         {apt.service_type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-400">
-                      <div className="w-4 h-4 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
-                        <User size={8} className="opacity-40" />
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
+                        <User size={10} className="opacity-40" />
                       </div>
-                      <span className="text-[0.7rem] font-600 truncate opacity-80">{apt.pets?.clients?.name}</span>
+                      <span className="text-[0.75rem] font-600 truncate opacity-90">{apt.pets?.clients?.name}</span>
                     </div>
                   </div>
                 </div>
@@ -248,7 +248,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
-      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.6</div>
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.7</div>
     </div>
   )
 }
