@@ -5,7 +5,7 @@ import { Sparkles, Plus, Search, Filter } from 'lucide-react'
 import KanbanBoard from '@/components/KanbanBoard'
 import type { Appointment, AppointmentStatus } from '@/types'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
-import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
+import { getAppointments, updateAppointmentStatus, updatePaymentStatus } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 
 export default function PetCRMPage() {
@@ -38,6 +38,7 @@ export default function PetCRMPage() {
   }, [fetchAppointments])
 
   const handleMove = async (id: string, newStatus: AppointmentStatus) => {
+    console.log(`Moving appointment ${id} to ${newStatus}`);
     // Optimistic update
     setAppointments(prev => 
       prev.map(apt => apt.id === id ? { ...apt, status: newStatus } : apt)
@@ -45,6 +46,7 @@ export default function PetCRMPage() {
 
     try {
       await updateAppointmentStatus(id, newStatus)
+      router.refresh()
     } catch (error: any) {
       console.error('Error updating status:', error)
       fetchAppointments() // Revert if failed
@@ -58,8 +60,8 @@ export default function PetCRMPage() {
     )
 
     try {
-      const { updatePaymentStatus } = await import('@/lib/actions')
       await updatePaymentStatus(id, payment_status)
+      router.refresh()
     } catch (error: any) {
       console.error('Error updating payment status:', error)
       fetchAppointments() // Revert if failed
