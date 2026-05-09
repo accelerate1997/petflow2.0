@@ -48,7 +48,7 @@ export default function AddPetModal({ onClose, onSuccess, preselectedOwnerId }: 
         temperament_notes: form.temperament_notes || '',
         medical_alerts: form.medical_alerts || '',
         owner_id: form.owner_id,
-        photo_url: form.photo_url || '',
+        photo: form.photo_url || '',
       })
       onSuccess()
       onClose()
