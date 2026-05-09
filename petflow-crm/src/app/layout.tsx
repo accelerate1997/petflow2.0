@@ -26,6 +26,9 @@ export default function RootLayout({
           <Sidebar />
           <main className="flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
             {children}
+            <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none z-[9999]">
+              v1.0.2
+            </div>
           </main>
         </div>
       </body>
