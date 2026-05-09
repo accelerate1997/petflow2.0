@@ -7,6 +7,7 @@ import { statusStyles } from '@/types'
 interface KanbanCardProps {
   appointment: Appointment
   onMove: (id: string, newStatus: AppointmentStatus) => void
+  onPaymentUpdate: (id: string, status: string) => void
 }
 
 const statusOrder: AppointmentStatus[] = ['Lead', 'Booked', 'CheckedIn', 'InService', 'Done', 'CheckOut']
@@ -56,11 +57,7 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
         <div className="relative">
           <select 
             value={appointment.payment_status}
-            onChange={(e) => {
-              // We'll need a way to trigger the update action here
-              // Since this is a client component, we can call the server action directly
-              import('@/lib/actions').then(m => m.updatePaymentStatus(appointment.id, e.target.value))
-            }}
+            onChange={(e) => onPaymentUpdate(appointment.id, e.target.value)}
             className="appearance-none bg-gray-50 border-none text-[0.65rem] font-700 px-2 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors focus:ring-1 focus:ring-sage outline-none pr-6"
             style={{ 
               color: appointment.payment_status === 'Pending' ? '#9ca3af' : '#10b981',

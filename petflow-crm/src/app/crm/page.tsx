@@ -51,6 +51,21 @@ export default function PetCRMPage() {
     }
   }
 
+  const handlePaymentUpdate = async (id: string, payment_status: string) => {
+    // Optimistic update
+    setAppointments(prev => 
+      prev.map(apt => apt.id === id ? { ...apt, payment_status } : apt)
+    )
+
+    try {
+      const { updatePaymentStatus } = await import('@/lib/actions')
+      await updatePaymentStatus(id, payment_status)
+    } catch (error: any) {
+      console.error('Error updating payment status:', error)
+      fetchAppointments() // Revert if failed
+    }
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-[100vw] pb-24 md:pb-8">
       {/* Header */}
@@ -108,6 +123,7 @@ export default function PetCRMPage() {
         <KanbanBoard 
           appointments={appointments} 
           onMove={handleMove} 
+          onPaymentUpdate={handlePaymentUpdate}
         />
       )}
 

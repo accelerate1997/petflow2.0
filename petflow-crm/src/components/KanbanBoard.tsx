@@ -7,6 +7,7 @@ import KanbanCard from './KanbanCard'
 interface KanbanBoardProps {
   appointments: Appointment[]
   onMove: (id: string, newStatus: AppointmentStatus) => void
+  onPaymentUpdate: (id: string, status: string) => void
 }
 
 const columns: { key: AppointmentStatus; label: string; icon: string; color: string }[] = [
@@ -60,6 +61,7 @@ export default function KanbanBoard({ appointments, onMove }: KanbanBoardProps) 
                     key={apt.id} 
                     appointment={apt} 
                     onMove={onMove} 
+                    onPaymentUpdate={onPaymentUpdate}
                   />
                 ))
               )}
