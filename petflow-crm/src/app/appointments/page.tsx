@@ -106,59 +106,73 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="card p-3 md:p-5 flex items-center gap-3 md:gap-5">
+            <div key={apt.id} className="bg-white rounded-2xl p-4 md:p-5 flex items-center gap-4 md:gap-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
+              {/* Accent Bar */}
+              <div 
+                className="absolute left-0 top-0 bottom-0 w-1 opacity-60"
+                style={{ background: 'var(--sage)' }}
+              />
+
               {/* Time Section */}
-              <div className="flex flex-col items-center justify-center p-2 md:p-3 rounded-2xl" style={{ width: 70, background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
-                <Clock size={14} className="mb-1" />
-                <p className="font-700 text-xs md:text-sm">{apt.appointment_time.slice(0, 5)}</p>
-                <p className="text-[0.6rem] font-600 opacity-60 uppercase">{new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+              <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl min-w-[70px]" style={{ background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
+                <Clock size={14} className="mb-1 opacity-70" />
+                <p className="font-800 text-[0.85rem] leading-none mb-1">{apt.appointment_time.slice(0, 5)}</p>
+                <p className="text-[0.6rem] font-700 opacity-60 uppercase tracking-tighter">
+                  {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </p>
               </div>
 
-              {/* Pet Info */}
+              {/* Pet Avatar */}
               <div
-                className="flex items-center justify-center rounded-2xl flex-shrink-0"
-                style={{ width: 40, height: 40, background: '#f9fafb', fontSize: '1.2rem' }}
+                className="flex items-center justify-center rounded-2xl flex-shrink-0 bg-gray-50 border border-white shadow-inner"
+                style={{ width: 48, height: 48, fontSize: '1.4rem' }}
               >
                 {speciesEmoji[apt.pets?.species || 'other']}
               </div>
+
+              {/* Main Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-700 text-[0.9rem] md:text-[1rem] truncate">{apt.pets?.pet_name}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-800 text-[1rem] text-gray-800 truncate leading-tight">{apt.pets?.pet_name}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.7rem] md:text-xs text-gray-500">
-                  <span className="font-600 color-sage-dark">{apt.service_type}</span>
-                  <span className="hidden md:inline">•</span>
-                  <span className="truncate">{apt.pets?.clients?.name}</span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-[0.7rem] font-800 text-sage-dark uppercase tracking-wider bg-sage-muted px-2 py-0.5 rounded-lg">{apt.service_type}</span>
+                  <div className="flex items-center gap-1 text-gray-400">
+                    <User size={10} />
+                    <span className="text-[0.7rem] font-600 truncate">{apt.pets?.clients?.name}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Actions & Price */}
-              <div className="flex items-center gap-3 md:gap-6">
+              {/* Status & Price */}
+              <div className="flex items-center gap-4 md:gap-8">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[0.6rem] text-gray-400 font-600 uppercase">Fee</p>
-                  <p className="font-700 text-sm mb-1">{formatCurrency(apt.price)}</p>
-                  <div className="relative inline-block mt-1">
-                    <select 
-                      value={apt.payment_status}
-                      onChange={(e) => {
-                        updatePaymentStatus(apt.id, e.target.value).then(() => {
-                          fetchAppointments()
-                          router.refresh()
-                        }).catch(err => {
-                          console.error('Payment update error:', err)
-                          alert('Failed to update payment: ' + err.message)
-                        })
-                      }}
-                      className="appearance-none bg-gray-50 border border-gray-100 text-[0.65rem] font-700 px-2 py-0.5 pr-5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors outline-none text-gray-500"
-                    >
-                      <option value="Pending">🕒 Pending</option>
-                      <option value="Cash">💵 Cash</option>
-                      <option value="UPI">📱 UPI</option>
-                    </select>
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-                      <ChevronRight size={10} className="rotate-90" />
-                    </div>
-                  </div>
+                  <p className="text-[0.6rem] text-gray-400 font-700 uppercase tracking-widest mb-0.5">Total Fee</p>
+                  <p className="font-800 text-[1.1rem] text-gray-800">{formatCurrency(apt.price)}</p>
+                  
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const statuses = ['Pending', 'Cash', 'UPI'];
+                      const nextIdx = (statuses.indexOf(apt.payment_status) + 1) % statuses.length;
+                      updatePaymentStatus(apt.id, statuses[nextIdx]).then(() => {
+                        fetchAppointments()
+                        router.refresh()
+                      })
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[0.65rem] font-800 transition-all border shadow-sm"
+                    style={{ 
+                      backgroundColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
+                                       apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
+                      color: apt.payment_status === 'Pending' ? '#6b7280' : 
+                             apt.payment_status === 'Cash' ? '#059669' : '#2563eb',
+                      borderColor: apt.payment_status === 'Pending' ? '#e5e7eb' : 
+                                   apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
+                    }}
+                  >
+                    {apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}
+                    <span className="uppercase tracking-widest">{apt.payment_status}</span>
+                  </button>
                 </div>
                 <div className="flex gap-1">
                   {apt.status === 'Booked' && (
