@@ -119,24 +119,26 @@ export default function AppointmentsPage() {
                   </p>
                 </div>
 
-                {/* Pet Icon & Details with Mobile Spacing */}
-                <div className="flex items-center gap-4 md:gap-5 flex-1 min-w-0">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-50 border border-white shadow-sm flex items-center justify-center text-xl md:text-2xl flex-shrink-0">
+                {/* Pet Icon & Details with Mobile Spacing and Top Alignment */}
+                <div className="flex items-start gap-5 md:gap-6 flex-1 min-w-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-50 border border-white shadow-sm flex items-center justify-center text-xl md:text-2xl flex-shrink-0 mt-0.5">
                     {speciesEmoji[apt.pets?.species || 'other']}
                   </div>
                   
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                      <h3 className="font-800 text-[0.95rem] md:text-[1.1rem] text-gray-800 tracking-tight truncate leading-none capitalize">
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-1.5">
+                      <h3 className="font-800 text-[1rem] md:text-[1.15rem] text-gray-800 tracking-tight truncate leading-none capitalize">
                         {apt.pets?.pet_name}
                       </h3>
-                      <span className="px-2 py-0.5 rounded-lg bg-sage-muted text-sage-dark text-[0.55rem] font-800 uppercase tracking-widest border border-sage/10 whitespace-nowrap">
+                      <span className="inline-block w-fit px-2 py-0.5 rounded-lg bg-sage-muted text-sage-dark text-[0.55rem] font-800 uppercase tracking-widest border border-sage/10">
                         {apt.service_type}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-400">
-                      <User size={10} className="opacity-50" />
-                      <span className="text-[0.7rem] font-600 truncate">{apt.pets?.clients?.name}</span>
+                      <div className="w-4 h-4 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
+                        <User size={8} className="opacity-40" />
+                      </div>
+                      <span className="text-[0.7rem] font-600 truncate opacity-80">{apt.pets?.clients?.name}</span>
                     </div>
                   </div>
                 </div>
@@ -246,7 +248,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
-      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.4</div>
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.6</div>
     </div>
   )
 }
