@@ -54,26 +54,24 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
           <span className="truncate font-500">{appointment.service_type}</span>
         </div>
         
-        <div className="relative">
-          <select 
-            value={appointment.payment_status}
-            onChange={(e) => {
-              alert('INTERACTION DETECTED: ' + e.target.value);
-              onPaymentUpdate(appointment.id, e.target.value);
-            }}
-            className="appearance-none bg-gray-50 border-none text-[0.65rem] font-700 px-2 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors focus:ring-1 focus:ring-sage outline-none pr-6"
-            style={{ 
-              color: appointment.payment_status === 'Pending' ? '#9ca3af' : '#10b981',
-            }}
-          >
-            <option value="Pending">🕒 Pending</option>
-            <option value="Cash">💵 Cash</option>
-            <option value="UPI">📱 UPI</option>
-          </select>
-          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-            <ChevronRight size={10} className="rotate-90" />
-          </div>
-        </div>
+        <button 
+          type="button"
+          onClick={() => {
+            alert('BUTTON CLICKED');
+            const statuses = ['Pending', 'Cash', 'UPI'];
+            const nextIdx = (statuses.indexOf(appointment.payment_status) + 1) % statuses.length;
+            const nextStatus = statuses[nextIdx];
+            alert('SETTING TO: ' + nextStatus);
+            onPaymentUpdate(appointment.id, nextStatus);
+          }}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 text-[0.65rem] font-700 hover:bg-gray-100 transition-colors border border-gray-100"
+          style={{ 
+            color: appointment.payment_status === 'Pending' ? '#9ca3af' : '#10b981',
+          }}
+        >
+          {appointment.payment_status === 'Cash' ? '💵 Cash' : 
+           appointment.payment_status === 'UPI' ? '📱 UPI' : '🕒 Pending'}
+        </button>
       </div>
 
       <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-gray-50">
