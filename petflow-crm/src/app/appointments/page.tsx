@@ -140,10 +140,9 @@ export default function AppointmentsPage() {
               </div>
 
               {/* Status & Price */}
-              <div className="flex items-center gap-3 md:gap-6">
-                <div className="text-right hidden sm:block">
-                  <p className="text-[0.55rem] text-gray-400 font-700 uppercase tracking-widest">Fee</p>
-                  <p className="font-800 text-[0.95rem] text-gray-800">{formatCurrency(apt.price)}</p>
+              <div className="flex flex-col items-end gap-1.5 min-w-[90px]">
+                <div className="text-right">
+                  <p className="font-800 text-[0.95rem] text-gray-800 leading-none">{formatCurrency(apt.price)}</p>
                   
                   <button 
                     type="button"
@@ -155,7 +154,7 @@ export default function AppointmentsPage() {
                         router.refresh()
                       })
                     }}
-                    className="mt-1 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.55rem] font-800 transition-all border shadow-sm"
+                    className="mt-1.5 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.5rem] font-800 transition-all border shadow-sm"
                     style={{ 
                       backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
                                        apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
@@ -213,6 +212,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.3</div>
     </div>
   )
 }
