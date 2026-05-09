@@ -53,9 +53,26 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
           <span className="truncate font-500">{appointment.service_type}</span>
         </div>
         
-        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-gray-50 text-[0.65rem] font-700 w-fit">
-          {appointment.payment_status === 'Cash' ? '💵 Cash' : 
-           appointment.payment_status === 'UPI' ? '📱 UPI' : '🕒 Pending'}
+        <div className="relative">
+          <select 
+            value={appointment.payment_status}
+            onChange={(e) => {
+              // We'll need a way to trigger the update action here
+              // Since this is a client component, we can call the server action directly
+              import('@/lib/actions').then(m => m.updatePaymentStatus(appointment.id, e.target.value))
+            }}
+            className="appearance-none bg-gray-50 border-none text-[0.65rem] font-700 px-2 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors focus:ring-1 focus:ring-sage outline-none pr-6"
+            style={{ 
+              color: appointment.payment_status === 'Pending' ? '#9ca3af' : '#10b981',
+            }}
+          >
+            <option value="Pending">🕒 Pending</option>
+            <option value="Cash">💵 Cash</option>
+            <option value="UPI">📱 UPI</option>
+          </select>
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+            <ChevronRight size={10} className="rotate-90" />
+          </div>
         </div>
       </div>
 

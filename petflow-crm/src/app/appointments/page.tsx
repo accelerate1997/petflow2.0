@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import type { Appointment, AppointmentStatus } from '@/types'
 import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
@@ -137,9 +137,26 @@ export default function AppointmentsPage() {
                 <div className="text-right hidden sm:block">
                   <p className="text-[0.6rem] text-gray-400 font-600 uppercase">Fee</p>
                   <p className="font-700 text-sm mb-1">{formatCurrency(apt.price)}</p>
-                  <div className="text-[0.6rem] font-700 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 text-gray-500">
-                    {apt.payment_status === 'Cash' ? '💵 Cash' : 
-                     apt.payment_status === 'UPI' ? '📱 UPI' : '🕒 Pending'}
+                  <div className="relative inline-block mt-1">
+                    <select 
+                      value={apt.payment_status}
+                      onChange={(e) => {
+                        import('@/lib/actions').then(m => {
+                          m.updatePaymentStatus(apt.id, e.target.value).then(() => {
+                            fetchAppointments()
+                            router.refresh()
+                          })
+                        })
+                      }}
+                      className="appearance-none bg-gray-50 border border-gray-100 text-[0.65rem] font-700 px-2 py-0.5 pr-5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors outline-none text-gray-500"
+                    >
+                      <option value="Pending">🕒 Pending</option>
+                      <option value="Cash">💵 Cash</option>
+                      <option value="UPI">📱 UPI</option>
+                    </select>
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                      <ChevronRight size={10} className="rotate-90" />
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-1">
