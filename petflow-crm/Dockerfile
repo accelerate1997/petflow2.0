@@ -1,57 +1,27 @@
-FROM node:22-slim AS base
+FROM node:22-slim
 
-# Install dependencies only when needed
-FROM base AS deps
-# Install openssl for Prisma
+# Install dependencies needed for Prisma
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy everything
 COPY . .
 
-# Next.js telemetry is disabled
-ENV NEXT_TELEMETRY_DISABLED 1
+# Install dependencies
+RUN npm install
 
-# Receive environment variables from Coolify
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
-
-# Generate Prisma Client
+# Generate Prisma client
 RUN npx prisma generate
 
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build > build.log 2>&1 || (cat build.log && exit 1)
+# Build the app
+RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy the built standalone artifacts
-COPY --from=builder /app/public ./public
-
-# Automatically leverage output traces to reduce image size
-# Ensure you have 'output: "standalone"' in your next.config.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+# Expose port
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-CMD ["node", "server.js"]
+# Start the app
+CMD ["npm", "start"]
