@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, User } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import type { Appointment, AppointmentStatus } from '@/types'
 import { getAppointments, updateAppointmentStatus, updatePaymentStatus } from '@/lib/actions'
@@ -215,7 +215,7 @@ export default function AppointmentsPage() {
           }}
         />
       )}
-      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.3</div>
+      <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none">v1.0.4</div>
     </div>
   )
 }
