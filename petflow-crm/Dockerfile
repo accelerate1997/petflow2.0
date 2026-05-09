@@ -20,8 +20,11 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # Receive environment variables from Coolify
-ARG NEXT_PUBLIC_POCKETBASE_URL
-ENV NEXT_PUBLIC_POCKETBASE_URL=$NEXT_PUBLIC_POCKETBASE_URL
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
+# Generate Prisma Client
+RUN npx prisma generate
 
 RUN npm run build
 

@@ -1,6 +1,5 @@
 import { PawPrint, IndianRupee, Users, TrendingUp, Calendar, ArrowRight, Clock } from 'lucide-react'
 import StatCard from '@/components/StatCard'
-import SetupBanner from '@/components/SetupBanner'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
