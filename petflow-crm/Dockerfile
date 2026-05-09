@@ -26,7 +26,7 @@ ENV DATABASE_URL=$DATABASE_URL
 # Generate Prisma Client
 RUN npx prisma generate
 
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build > build.log 2>&1 || (cat build.log && exit 1)
 
 # Production image, copy all the files and run next
 FROM base AS runner
