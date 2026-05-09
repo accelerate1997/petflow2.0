@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from './prisma'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_noStore as noStore } from 'next/cache'
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,7 @@ export async function deleteService(id: string) {
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export async function getAppointments(view: 'today' | 'tomorrow' | 'week' | 'all' = 'all') {
+  noStore()
   let where: any = {}
   const today = new Date()
   today.setHours(0, 0, 0, 0)
