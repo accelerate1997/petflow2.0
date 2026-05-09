@@ -14,8 +14,8 @@ export default function PetCRMPage() {
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
 
-  const fetchAppointments = useCallback(async () => {
-    setLoading(true)
+  const fetchAppointments = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const data = await getAppointments()
       // Map Prisma include to our Appointment type
@@ -30,7 +30,7 @@ export default function PetCRMPage() {
     } catch (error: any) {
       console.error('Error fetching appointments:', error)
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function PetCRMPage() {
 
     try {
       await updateAppointmentStatus(id, newStatus)
+      await fetchAppointments(true)
       router.refresh()
     } catch (error: any) {
       console.error('Error updating status:', error)
@@ -66,7 +67,7 @@ export default function PetCRMPage() {
     try {
       const res = await updatePaymentStatus(id, payment_status)
       console.log('Server update successful:', res);
-      // alert('Payment Status Saved: ' + payment_status)
+      await fetchAppointments(true)
       router.refresh()
     } catch (error: any) {
       console.error('Error updating payment status:', error)
