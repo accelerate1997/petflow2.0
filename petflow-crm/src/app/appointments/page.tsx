@@ -106,97 +106,100 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           appointments.map(apt => (
-            <div key={apt.id} className="bg-white rounded-xl p-3 md:p-4 flex items-center gap-3 md:gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
-              {/* Accent Bar */}
-              <div 
-                className="absolute left-0 top-0 bottom-0 w-1 opacity-60"
-                style={{ background: 'var(--sage)' }}
-              />
-
-              {/* Time Section */}
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl min-w-[60px]" style={{ background: 'var(--sage-muted)', color: 'var(--sage-dark)' }}>
-                <Clock size={12} className="mb-0.5 opacity-70" />
-                <p className="font-800 text-[0.75rem] leading-none mb-0.5">{apt.appointment_time.slice(0, 5)}</p>
-                <p className="text-[0.55rem] font-700 opacity-60 uppercase tracking-tighter">
+            <div key={apt.id} className="bg-white rounded-[2rem] p-4 md:p-6 flex flex-col md:flex-row md:items-center gap-4 md:gap-8 shadow-sm border border-gray-100/50 hover:shadow-xl transition-all duration-500 group relative overflow-hidden mb-2">
+              {/* Accent Background */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-sage-muted/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+              
+              {/* Time Section - Bold & Visual */}
+              <div className="flex md:flex-col items-center justify-center p-3 md:p-5 rounded-[1.5rem] bg-sage-muted text-sage-dark min-w-[100px] shadow-sm">
+                <p className="font-900 text-lg md:text-2xl tracking-tighter leading-none mb-0.5">{apt.appointment_time.slice(0, 5)}</p>
+                <div className="md:w-full md:h-[1px] bg-sage-dark/10 my-1 hidden md:block" />
+                <p className="text-[0.65rem] font-800 uppercase tracking-widest opacity-70 ml-2 md:ml-0">
                   {new Date(apt.appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </p>
               </div>
 
-              {/* Pet Avatar */}
-              <div
-                className="flex items-center justify-center rounded-xl flex-shrink-0 bg-gray-50 border border-white"
-                style={{ width: 40, height: 40, fontSize: '1.2rem' }}
-              >
-                {speciesEmoji[apt.pets?.species || 'other']}
-              </div>
-
-              {/* Main Content */}
-              <div className="flex-1 min-w-0">
-                <p className="font-800 text-[0.9rem] text-gray-800 truncate leading-tight mb-1">{apt.pets?.pet_name}</p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="text-[0.6rem] font-800 text-sage-dark uppercase tracking-wider bg-sage-muted px-1.5 py-0.5 rounded-lg">{apt.service_type}</span>
-                  <span className="text-[0.6rem] font-600 text-gray-400 truncate max-w-[80px]">{apt.pets?.clients?.name}</span>
+              {/* Pet & Service Info */}
+              <div className="flex-1 flex items-center gap-4 md:gap-6 min-w-0">
+                <div className="w-16 h-16 rounded-[1.25rem] bg-gray-50 border-2 border-white shadow-md flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform">
+                  {speciesEmoji[apt.pets?.species || 'other']}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <h3 className="font-900 text-[1.2rem] md:text-[1.3rem] text-gray-800 tracking-tight truncate leading-none">
+                      {apt.pets?.pet_name}
+                    </h3>
+                    <span className="px-3 py-1 rounded-full bg-sage-muted/50 text-sage-dark text-[0.65rem] font-800 uppercase tracking-widest border border-sage/10">
+                      {apt.service_type}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                      <User size={10} className="text-gray-400" />
+                    </div>
+                    <span className="text-[0.8rem] font-600 truncate">{apt.pets?.clients?.name}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Status & Price */}
-              <div className="flex flex-col items-end gap-1.5 min-w-[90px]">
-                <div className="text-right">
-                  <p className="font-800 text-[0.95rem] text-gray-800 leading-none">{formatCurrency(apt.price)}</p>
-                  
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const statuses = ['Pending', 'Cash', 'UPI'];
-                      const nextIdx = (statuses.indexOf(apt.payment_status) + 1) % statuses.length;
-                      updatePaymentStatus(apt.id, statuses[nextIdx]).then(() => {
-                        fetchAppointments()
-                        router.refresh()
-                      })
-                    }}
-                    className="mt-1.5 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.5rem] font-800 transition-all border shadow-sm"
-                    style={{ 
-                      backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
-                                       apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
-                      color: apt.payment_status === 'Pending' ? '#9ca3af' : 
-                             apt.payment_status === 'Cash' ? '#059669' : '#2563eb',
-                      borderColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
-                                   apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
-                    }}
-                  >
-                    <span>{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
-                    <span className="uppercase tracking-widest">{apt.payment_status}</span>
-                  </button>
+              {/* Status & Price Pill Area */}
+              <div className="flex items-center justify-between md:flex-col md:items-end gap-3 md:gap-2">
+                <div className="md:text-right">
+                  <p className="text-[0.6rem] text-gray-400 font-800 uppercase tracking-[0.2em] mb-0.5">Service Fee</p>
+                  <p className="font-900 text-xl text-gray-800 tracking-tight leading-none">{formatCurrency(apt.price)}</p>
                 </div>
-                <div className="flex gap-1">
-                  {apt.status === 'Booked' && (
-                    <>
-                      <button
-                        title="Mark Completed"
-                        onClick={() => updateStatus(apt.id, 'Done')}
-                        className="p-2 rounded-xl border border-emerald-100 hover:bg-emerald-50 text-emerald-600 transition-colors"
-                      >
-                        <CheckCircle size={18} />
-                      </button>
-                      <button
-                        title="Cancel"
-                        onClick={() => updateStatus(apt.id, 'Cancelled')}
-                        className="p-2 rounded-xl border border-red-100 hover:bg-red-50 text-red-600 transition-colors"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </>
-                  )}
-                  {apt.status !== 'Booked' && (
+
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const statuses = ['Pending', 'Cash', 'UPI'];
+                    const nextIdx = (statuses.indexOf(apt.payment_status) + 1) % statuses.length;
+                    updatePaymentStatus(apt.id, statuses[nextIdx]).then(() => {
+                      fetchAppointments()
+                      router.refresh()
+                    })
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-[0.7rem] font-900 transition-all shadow-sm border active:scale-95"
+                  style={{ 
+                    backgroundColor: apt.payment_status === 'Pending' ? '#f9fafb' : 
+                                     apt.payment_status === 'Cash' ? '#ecfdf5' : '#eff6ff',
+                    color: apt.payment_status === 'Pending' ? '#9ca3af' : 
+                           apt.payment_status === 'Cash' ? '#059669' : '#2563eb',
+                    borderColor: apt.payment_status === 'Pending' ? '#f3f4f6' : 
+                                 apt.payment_status === 'Cash' ? '#d1fae5' : '#dbeafe',
+                  }}
+                >
+                  <span className="text-lg">{apt.payment_status === 'Cash' ? '💵' : apt.payment_status === 'UPI' ? '📱' : '🕒'}</span>
+                  <span className="uppercase tracking-[0.1em]">{apt.payment_status}</span>
+                </button>
+              </div>
+
+              {/* Status Actions */}
+              <div className="flex gap-2 border-t md:border-t-0 md:border-l border-gray-50 pt-4 md:pt-0 md:pl-6">
+                {apt.status === 'Booked' && (
+                  <>
                     <button
-                      title="Re-schedule"
-                      onClick={() => updateStatus(apt.id, 'Booked')}
-                      className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50 text-gray-400 transition-colors"
+                      onClick={() => updateStatus(apt.id, 'Done')}
+                      className="flex-1 md:flex-none p-3 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                     >
-                      <AlertCircle size={18} />
+                      <CheckCircle size={20} />
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={() => updateStatus(apt.id, 'Cancelled')}
+                      className="flex-1 md:flex-none p-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                    >
+                      <XCircle size={20} />
+                    </button>
+                  </>
+                )}
+                {apt.status !== 'Booked' && (
+                  <button
+                    onClick={() => updateStatus(apt.id, 'Booked')}
+                    className="w-full md:w-auto px-4 py-3 rounded-2xl bg-gray-50 text-gray-400 hover:bg-gray-800 hover:text-white transition-all text-[0.7rem] font-800 uppercase tracking-widest"
+                  >
+                    Reschedule
+                  </button>
+                )}
               </div>
             </div>
           ))
