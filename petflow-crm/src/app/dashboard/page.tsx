@@ -3,6 +3,9 @@ import StatCard from '@/components/StatCard'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DashboardPage() {
   const today = new Date().toISOString().split('T')[0]
   const thisMonth = new Date()

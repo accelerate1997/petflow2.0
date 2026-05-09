@@ -7,6 +7,8 @@ import type { Appointment, AppointmentStatus } from '@/types'
 import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [view, setView] = useState<'today' | 'tomorrow' | 'week' | 'all'>('today')
