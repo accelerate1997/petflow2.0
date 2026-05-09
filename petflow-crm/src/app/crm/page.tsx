@@ -64,8 +64,9 @@ export default function PetCRMPage() {
     });
 
     try {
-      await updatePaymentStatus(id, payment_status)
-      console.log('Server update successful');
+      const res = await updatePaymentStatus(id, payment_status)
+      console.log('Server update successful:', res);
+      // alert('Payment Status Saved: ' + payment_status)
       router.refresh()
     } catch (error: any) {
       console.error('Error updating payment status:', error)

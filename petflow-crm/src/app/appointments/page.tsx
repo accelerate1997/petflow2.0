@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import type { Appointment, AppointmentStatus } from '@/types'
-import { getAppointments, updateAppointmentStatus } from '@/lib/actions'
+import { getAppointments, updateAppointmentStatus, updatePaymentStatus } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -141,11 +141,12 @@ export default function AppointmentsPage() {
                     <select 
                       value={apt.payment_status}
                       onChange={(e) => {
-                        import('@/lib/actions').then(m => {
-                          m.updatePaymentStatus(apt.id, e.target.value).then(() => {
-                            fetchAppointments()
-                            router.refresh()
-                          })
+                        updatePaymentStatus(apt.id, e.target.value).then(() => {
+                          fetchAppointments()
+                          router.refresh()
+                        }).catch(err => {
+                          console.error('Payment update error:', err)
+                          alert('Failed to update payment: ' + err.message)
                         })
                       }}
                       className="appearance-none bg-gray-50 border border-gray-100 text-[0.65rem] font-700 px-2 py-0.5 pr-5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors outline-none text-gray-500"
