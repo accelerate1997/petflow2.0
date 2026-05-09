@@ -57,7 +57,10 @@ export default function KanbanCard({ appointment, onMove }: KanbanCardProps) {
         <div className="relative">
           <select 
             value={appointment.payment_status}
-            onChange={(e) => onPaymentUpdate(appointment.id, e.target.value)}
+            onChange={(e) => {
+              alert('INTERACTION DETECTED: ' + e.target.value);
+              onPaymentUpdate(appointment.id, e.target.value);
+            }}
             className="appearance-none bg-gray-50 border-none text-[0.65rem] font-700 px-2 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors focus:ring-1 focus:ring-sage outline-none pr-6"
             style={{ 
               color: appointment.payment_status === 'Pending' ? '#9ca3af' : '#10b981',
