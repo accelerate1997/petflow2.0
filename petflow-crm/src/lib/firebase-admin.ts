@@ -16,6 +16,8 @@ if (!admin.apps.length) {
       
       // Replace escaped newlines (both \\n and literal \n)
       privateKey = privateKey.replace(/\\n/g, '\n')
+      // Remove any literal backslashes (e.g. used for line continuation in env files)
+      privateKey = privateKey.replace(/\\/g, '')
       
       console.log('[Firebase Admin Debug] Parsed Header:', privateKey.substring(0, 30))
       console.log('[Firebase Admin Debug] Parsed Footer:', privateKey.substring(privateKey.length - 30))
