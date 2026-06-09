@@ -19,7 +19,18 @@ const eslintConfig = [
     },
   },
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "scratch/**",
+      "set-webhook.js",
+      "set-webhook-v2.js",
+      "check-webhook.js",
+      "test-evo.js",
+      "test-evo-noport.js",
+    ],
   }
 ];
 

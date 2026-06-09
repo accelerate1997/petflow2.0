@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react'
 import AddClientModal from '@/components/AddClientModal'
 import AddPetModal from '@/components/AddPetModal'
+import CheckoutModal from '@/components/CheckoutModal'
 import type { Client, Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
-import { getClients, deleteClient as deleteClientAction } from '@/lib/actions'
+import { getClients, deleteClient as deleteClientAction, getSettings } from '@/lib/actions'
+import { formatCurrency as formatCurrencyHelper } from '@/lib/currency'
 import { useRouter } from 'next/navigation'
 
 type ClientWithPets = Client & { pets: Pet[] }
@@ -18,15 +20,24 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [showAddClient, setShowAddClient] = useState(false)
   const [showAddPet, setShowAddPet] = useState(false)
+  const [showCheckout, setShowCheckout] = useState(false)
+  const [checkoutClientId, setCheckoutClientId] = useState<string | undefined>()
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>()
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [currencyCode, setCurrencyCode] = useState('INR')
   const router = useRouter()
 
   const fetchClients = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getClients()
+      const [data, settings] = await Promise.all([
+        getClients(),
+        getSettings()
+      ])
       setClients(data as any)
+      if (settings?.currency_code) {
+        setCurrencyCode(settings.currency_code)
+      }
     } catch (error: any) {
       console.error('Error fetching clients:', error)
     }
@@ -46,7 +57,7 @@ export default function ClientsPage() {
   }, [clients, search])
 
   const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+    formatCurrencyHelper(n, currencyCode)
 
   const handleDeleteClient = async (id: string) => {
     if (!confirm('Delete this client and all their pets?')) return
@@ -115,115 +126,155 @@ export default function ClientsPage() {
               <div key={client.id} className="card overflow-hidden">
                 {/* Main row */}
                 <div
-                  className="flex items-center gap-4 p-5 cursor-pointer"
+                  className="flex items-center gap-4 p-4 md:p-5 cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : client.id)}
                 >
-                  {/* Avatar */}
-                  <div
-                    className="flex items-center justify-center rounded-2xl flex-shrink-0"
-                    style={{ width: 48, height: 48, background: 'var(--sage-muted)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--sage-dark)' }}
-                  >
-                    {client.name.charAt(0).toUpperCase()}
+                  {/* Avatar Section */}
+                  <div className="relative flex-shrink-0">
+                    <div
+                      className="flex items-center justify-center rounded-2xl font-bold"
+                      style={{ 
+                        width: 52, height: 52, 
+                        background: 'linear-gradient(135deg, var(--sage-muted) 0%, #e0e9e3 100%)', 
+                        fontSize: '1.2rem', color: 'var(--sage-dark)',
+                        border: '2px solid white',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
+                    >
+                      {client.name.charAt(0).toUpperCase()}
+                    </div>
+                    {client.pets?.length > 0 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-sage-dark text-white rounded-full flex items-center justify-center border-2 border-white" style={{ fontSize: '0.6rem', fontWeight: 800 }}>
+                        {client.pets.length}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Details */}
+                  {/* Info Section */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p style={{ fontWeight: 700, fontSize: '0.95rem' }}>{client.name}</p>
-                      {client.pets?.length > 0 && (
-                        <span style={{ fontSize: '0.7rem', background: 'var(--sage-muted)', color: 'var(--sage-dark)', padding: '0.15rem 0.5rem', borderRadius: '99px', fontWeight: 600 }}>
-                          {client.pets.length} pet{client.pets.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {client.whatsapp_number && (
-                        <span className="flex items-center gap-1" style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-                          <Phone size={11} /> {client.whatsapp_number}
-                        </span>
-                      )}
-                      {client.email && (
-                        <span className="flex items-center gap-1" style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-                          <Mail size={11} /> {client.email}
-                        </span>
-                      )}
+                    <p className="text-gray-900 font-800 text-[1rem] md:text-[1.05rem] truncate mb-0.5">{client.name}</p>
+                    
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-3">
+                        {client.whatsapp_number && (
+                          <span className="flex items-center gap-1 text-gray-500 font-500" style={{ fontSize: '0.78rem' }}>
+                            <Phone size={11} className="text-sage" /> {client.whatsapp_number}
+                          </span>
+                        )}
+                        {client.email && (
+                          <span className="hidden sm:flex items-center gap-1 text-gray-400" style={{ fontSize: '0.75rem' }}>
+                            <Mail size={11} /> {client.email.split('@')[0]}...
+                          </span>
+                        )}
+                      </div>
+                      
                       {client.address && (
-                        <span className="flex items-center gap-1" style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-                          <MapPin size={11} /> {client.address}
+                        <span className="flex items-center gap-1 text-gray-400 truncate max-w-[200px] md:max-w-[240px]" style={{ fontSize: '0.72rem' }}>
+                          <MapPin size={11} className="flex-shrink-0" /> {client.address}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Spend + chevron */}
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <div className="text-right">
-                      <p style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 2 }}>Total Spend</p>
-                      <p style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a1a' }}>
+                  {/* Metric Section */}
+                  <div className="flex items-center gap-3">
+                    <div className="hidden xs:flex flex-col items-end px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100">
+                      <span className="text-[0.6rem] text-gray-400 font-700 uppercase tracking-tighter">Total Spent</span>
+                      <span className="text-[0.95rem] font-800 text-gray-800">
                         {formatCurrency(client.total_spend || 0)}
-                      </p>
+                      </span>
                     </div>
-                    {isExpanded
-                      ? <ChevronUp size={18} style={{ color: '#9ca3af' }} />
-                      : <ChevronDown size={18} style={{ color: '#9ca3af' }} />
-                    }
+                    
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? 'bg-sage-dark text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
                   </div>
                 </div>
 
                 {/* Expanded: pet list + actions */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid #f3f4f6', padding: '1rem 1.25rem 1.25rem' }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 style={{ fontWeight: 600, fontSize: '0.85rem', color: '#374151' }}>
-                        Pets ({client.pets?.length || 0})
-                      </h4>
+                  <div style={{ borderTop: '1px solid #f3f4f6', padding: '1.25rem' }} className="bg-[#fcfcfb]">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                      <div>
+                        <h4 className="text-sm font-800 text-gray-700 mb-1">Detailed Profile</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {client.whatsapp_number && (
+                            <a 
+                              href={`https://wa.me/${client.whatsapp_number.replace(/\D/g, '')}`} 
+                              target="_blank"
+                              className="text-[0.75rem] flex items-center gap-1.5 text-sage-dark font-700 hover:underline"
+                            >
+                              <Phone size={12} /> WhatsApp Client
+                            </a>
+                          )}
+                          {client.email && (
+                            <span className="text-[0.75rem] flex items-center gap-1.5 text-gray-400">
+                              <Mail size={12} /> {client.email}
+                            </span>
+                          )}
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setCheckoutClientId(client.id); 
+                              setShowCheckout(true) 
+                            }}
+                            className="text-[0.75rem] flex items-center gap-1.5 text-blue-600 font-700 hover:underline"
+                          >
+                            <ShoppingBag size={12} /> Sell Product
+                          </button>
+                        </div>
+                      </div>
                       <div className="flex gap-2">
                         <button
-                          className="btn-outline"
-                          style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }}
-                          onClick={() => { setSelectedClientId(client.id); setShowAddPet(true) }}
+                          className="btn-outline !py-1.5 !px-3 !text-[0.75rem]"
+                          onClick={(e) => { e.stopPropagation(); setSelectedClientId(client.id); setShowAddPet(true) }}
                         >
                           <Plus size={13} /> Add Pet
                         </button>
                         <button
-                          onClick={() => handleDeleteClient(client.id)}
-                          style={{ background: '#fef2f2', border: '1.5px solid #fecaca', color: '#ef4444', borderRadius: '0.625rem', padding: '0.3rem 0.75rem', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[0.75rem] font-700 hover:bg-red-100 transition-colors"
                         >
                           <Trash2 size={13} /> Delete
                         </button>
                       </div>
                     </div>
 
-                    {!client.pets || client.pets.length === 0 ? (
-                      <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>No pets registered yet.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {client.pets.map(pet => {
-                          const style = getTemperamentStyle(pet.temperament_notes)
-                          return (
-                            <div
-                              key={pet.id}
-                              className="flex items-center gap-2 rounded-xl px-3 py-2"
-                              style={{ background: 'var(--bg)', border: '1px solid rgba(0,0,0,0.06)' }}
-                            >
-                              <span style={{ fontSize: '1.1rem' }}>{speciesEmoji[pet.species] || '🐾'}</span>
-                              <div>
-                                <p style={{ fontWeight: 600, fontSize: '0.82rem' }}>{pet.pet_name}</p>
-                                <p style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{pet.breed || pet.species}</p>
+                    <div className="space-y-3">
+                      <h5 className="text-[0.65rem] font-800 text-gray-400 uppercase tracking-widest">Registered Pets</h5>
+                      {!client.pets || client.pets.length === 0 ? (
+                        <p className="text-sm text-gray-400 italic">No pets found for this parent.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {client.pets.map(pet => {
+                            const style = getTemperamentStyle(pet.temperament_notes)
+                            return (
+                              <div
+                                key={pet.id}
+                                className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 shadow-sm"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-lg">
+                                    {speciesEmoji[pet.species || 'other'] || '🐾'}
+                                  </div>
+                                  <div>
+                                    <p className="font-700 text-gray-800 text-sm">{pet.pet_name}</p>
+                                    <p className="text-[0.7rem] text-gray-400">{pet.breed || pet.species}</p>
+                                  </div>
+                                </div>
+                                {pet.temperament_notes && (
+                                  <span
+                                    className={`text-[0.6rem] px-2 py-0.5 rounded-full border font-800 uppercase ${style.bg} ${style.color}`}
+                                  >
+                                    {pet.temperament_notes}
+                                  </span>
+                                )}
                               </div>
-                              {pet.temperament_notes && (
-                                <span
-                                  className={`text-xs px-2 py-0.5 rounded-full border ${style.bg} ${style.color}`}
-                                  style={{ fontSize: '0.68rem', fontWeight: 600 }}
-                                >
-                                  {pet.temperament_notes}
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -234,6 +285,7 @@ export default function ClientsPage() {
 
       {showAddClient && (
         <AddClientModal
+          currencySymbol={currencySymbol}
           onClose={() => setShowAddClient(false)}
           onSuccess={() => {
             fetchClients()
@@ -250,6 +302,14 @@ export default function ClientsPage() {
             router.refresh()
           }}
           preselectedOwnerId={selectedClientId}
+        />
+      )}
+
+      {showCheckout && (
+        <CheckoutModal 
+          clientId={checkoutClientId}
+          onClose={() => { setShowCheckout(false); setCheckoutClientId(undefined) }}
+          onSuccess={fetchClients}
         />
       )}
     </div>

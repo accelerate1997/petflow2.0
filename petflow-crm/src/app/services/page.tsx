@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, Search, Tag, Trash2, Sparkles } from 'lucide-react'
 import AddServiceModal from '@/components/AddServiceModal'
 import type { Service } from '@/types'
-import { getServices, deleteService as deleteServiceAction } from '@/lib/actions'
+import { getServices, deleteService as deleteServiceAction, getSettings } from '@/lib/actions'
+import { formatCurrency as formatCurrencyHelper } from '@/lib/currency'
 import { useRouter } from 'next/navigation'
 
 export default function ServicesPage() {
@@ -12,13 +13,22 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [currencyCode, setCurrencyCode] = useState('INR')
+  const [currencySymbol, setCurrencySymbol] = useState('₹')
   const router = useRouter()
 
   const fetchServices = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getServices()
+      const [data, settings] = await Promise.all([
+        getServices(),
+        getSettings()
+      ])
       setServices(data as unknown as Service[])
+      if (settings) {
+        if (settings.currency_code) setCurrencyCode(settings.currency_code)
+        if (settings.currency_symbol) setCurrencySymbol(settings.currency_symbol)
+      }
     } catch (error: any) {
       console.error('Error fetching services:', error)
     }
@@ -44,7 +54,7 @@ export default function ServicesPage() {
   )
 
   const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+    formatCurrencyHelper(n, currencyCode)
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
@@ -133,12 +143,46 @@ export default function ServicesPage() {
                 </p>
               </div>
 
-              <div className="mt-5 pt-4 border-t flex items-center justify-between" style={{ borderColor: '#f3f4f6' }}>
-                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>STARTING FROM</span>
-                <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>
-                  {formatCurrency(service.price)}
-                </span>
+              <div className="mt-5 pt-4 border-t" style={{ borderColor: '#f3f4f6' }}>
+                {(service.price_small != null || service.price_medium != null || service.price_large != null) ? (
+                  /* ── Tiered pricing display ── */
+                  <div className="flex flex-col gap-1.5">
+                    {service.price_small != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-[0.65rem] font-700 px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                          🐩 Small <span className="font-500" style={{ color: '#6b7280' }}>(&lt;10kg)</span>
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(service.price_small)}</span>
+                      </div>
+                    )}
+                    {service.price_medium != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-[0.65rem] font-700 px-2 py-0.5 rounded-full" style={{ background: '#fffbeb', color: '#d97706' }}>
+                          🐕 Medium <span className="font-500" style={{ color: '#6b7280' }}>(10–25kg)</span>
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(service.price_medium)}</span>
+                      </div>
+                    )}
+                    {service.price_large != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-[0.65rem] font-700 px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>
+                          🐕‍🦺 Large <span className="font-500" style={{ color: '#6b7280' }}>(&gt;25kg)</span>
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(service.price_large)}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── Flat price display ── */
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>PRICE</span>
+                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>
+                      {formatCurrency(service.price)}
+                    </span>
+                  </div>
+                )}
               </div>
+
             </div>
           ))}
         </div>
@@ -146,6 +190,7 @@ export default function ServicesPage() {
 
       {showAddModal && (
         <AddServiceModal
+          currencySymbol={currencySymbol}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             fetchServices()

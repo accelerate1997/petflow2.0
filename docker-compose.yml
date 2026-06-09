@@ -12,13 +12,13 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
 
-#   petflow-agent:
-#     build:
-#       context: ./petflow-agent
-#       dockerfile: Dockerfile
-#     ports:
-#       - "3002:3002"
-#     environment:
-#       # Add necessary backend environment variables here (or use .env file in petflow-agent)
-#       - PORT=3002
-#     restart: unless-stopped
+  petflow-agent:
+    build:
+      context: ./petflow-agent
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      # Add necessary backend environment variables here (or use .env file in petflow-agent)
+      - PORT=3002
+    restart: unless-stopped

@@ -1,39 +1,48 @@
-import { PawPrint, IndianRupee, Users, TrendingUp, Calendar, ArrowRight, Clock } from 'lucide-react'
+import { PawPrint, Coins, Users, TrendingUp, Calendar, ArrowRight, Clock } from 'lucide-react'
 import StatCard from '@/components/StatCard'
-import { prisma } from '@/lib/prisma'
+import { getDashboardStats } from '@/lib/actions'
 import Link from 'next/link'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { getLocalDateString } from '@/lib/dateUtils'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function DashboardPage() {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateString()
   const thisMonth = new Date()
 
-  // Fetch all required data
+  // Fetch all required data — tenant-scoped via server action
   let petCount = 0
   let allClients: any[] = []
   let todayAppointments: any[] = []
+  let currencyCode = 'INR'
 
   try {
-    const results = await Promise.all([
-      prisma.pet.count(),
-      prisma.client.findMany({
-        select: { id: true, total_spend: true, join_date: true, name: true, created: true },
-        orderBy: { created: 'desc' }
-      }),
-      prisma.appointment.findMany({
-        where: { appointment_date: today },
-        include: { pet: true },
-        orderBy: { appointment_time: 'asc' }
-      })
-    ])
-    petCount = results[0]
-    allClients = results[1]
-    todayAppointments = results[2]
+    const session = await getServerSession(authOptions)
+    const tenantId = (session?.user as any)?.tenantId
+
+    if (tenantId) {
+      const [stats, appts, settings] = await Promise.all([
+        getDashboardStats(),
+        prisma.appointment.findMany({
+          where: { tenantId, appointment_date: today },
+          include: { pet: true },
+          orderBy: { appointment_time: 'asc' }
+        }),
+        prisma.settings.findFirst({ where: { tenantId } })
+      ])
+      petCount = stats.petCount
+      allClients = stats.clients as any[]
+      todayAppointments = appts
+      if (settings?.currency_code) {
+        currencyCode = settings.currency_code
+      }
+    }
   } catch (error) {
     console.error('DASHBOARD_DATA_FETCH_ERROR:', error)
-    // Return a friendly error state or empty data
   }
 
   // Calculate stats
@@ -45,8 +54,13 @@ export default async function DashboardPage() {
 
   const recentClients = allClients.slice(0, 5)
 
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  const formatCurrency = (n: number) => {
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 }).format(n)
+    } catch {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+    }
+  }
 
   const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
 
@@ -76,7 +90,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Total Revenue"
           value={formatCurrency(totalRevenue)}
-          icon={IndianRupee}
+          icon={Coins}
           iconColor="#8b5cf6"
           iconBg="rgba(139,92,246,0.1)"
           trend="All time"

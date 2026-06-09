@@ -1,0 +1,24 @@
+{
+    "name": "petflow-whatsapp-agent",
+    "version": "1.0.0",
+    "description": "Luna — PetFlow Spa WhatsApp AI Agent",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "set-webhook": "node set-webhook.js",
+        "check": "node check-all.js"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.2.1",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.19.2",
+        "express-rate-limit": "^8.5.2",
+        "node-cron": "^4.2.1",
+        "openai": "^4.47.0",
+        "socket.io": "^4.8.3"
+    },
+    "devDependencies": {
+        "prisma": "^6.2.1"
+    }
+}

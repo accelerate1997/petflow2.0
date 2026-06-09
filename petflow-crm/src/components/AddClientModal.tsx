@@ -7,9 +7,10 @@ import { createClient } from '@/lib/actions'
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  currencySymbol?: string
 }
 
-export default function AddClientModal({ onClose, onSuccess }: Props) {
+export default function AddClientModal({ onClose, onSuccess, currencySymbol = '₹' }: Props) {
   const [form, setForm] = useState({
     name: '',
     whatsapp_number: '',
@@ -92,7 +93,7 @@ export default function AddClientModal({ onClose, onSuccess }: Props) {
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.375rem' }}>
-              Total Spend (₹)
+              Total Spend ({currencySymbol})
             </label>
             <input className="input-field" type="number" placeholder="0" value={form.total_spend} onChange={e => setForm({ ...form, total_spend: e.target.value })} />
           </div>

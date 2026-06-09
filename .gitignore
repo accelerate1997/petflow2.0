@@ -17,6 +17,10 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+.cursor/
+.codex/
+.gemini/
+.zed/
 *.suo
 *.ntvs*
 *.njsproj
@@ -36,5 +40,7 @@ out/
 # Supabase
 supabase/.temp
 
+# Scratch
+scratch/
+
 # Agent
-petflow-agent/

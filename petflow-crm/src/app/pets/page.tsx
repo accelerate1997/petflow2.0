@@ -8,11 +8,9 @@ import type { Pet } from '@/types'
 import { getPets } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 
-type PetWithClient = Pet & { clients: { name: string } }
-
 export default function PetsPage() {
-  const [pets, setPets] = useState<PetWithClient[]>([])
-  const [filtered, setFiltered] = useState<PetWithClient[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
+  const [filtered, setFiltered] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [speciesFilter, setSpeciesFilter] = useState<'all' | 'dog' | 'cat' | 'other'>('all')
@@ -24,11 +22,7 @@ export default function PetsPage() {
     setLoading(true)
     try {
       const data = await getPets()
-      const mapped = data.map((pet: any) => ({
-        ...pet,
-        clients: pet.owner ? { name: pet.owner.name } : { name: 'Unknown' }
-      })) as unknown as PetWithClient[]
-      setPets(mapped)
+      setPets(data)
     } catch (error: any) {
       console.error('Error fetching pets:', error)
     }
@@ -45,7 +39,7 @@ export default function PetsPage() {
       result = result.filter(p =>
         p.pet_name.toLowerCase().includes(q) ||
         (p.breed || '').toLowerCase().includes(q) ||
-        (p.clients?.name || '').toLowerCase().includes(q)
+        (p.owner?.name || '').toLowerCase().includes(q)
       )
     }
     if (speciesFilter !== 'all') result = result.filter(p => p.species === speciesFilter)
@@ -81,10 +75,10 @@ export default function PetsPage() {
         </button>
       </div>
 
-      {/* Filters - Stackable on mobile */}
-      <div className="card p-4 mb-6 flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-4 md:gap-3">
+      {/* Filters - Stackable on mobile, horizontal on desktop */}
+      <div className="card p-3 md:p-4 mb-6 flex flex-col md:flex-row md:items-center gap-3">
         {/* Search */}
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]" style={{ background: 'var(--bg)', border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.5rem 0.875rem' }}>
+        <div className="flex items-center gap-2 flex-1" style={{ background: 'var(--bg)', border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.5rem 0.875rem' }}>
           <Search size={15} style={{ color: '#9ca3af', flexShrink: 0 }} />
           <input
             placeholder="Search pets, breeds..."
@@ -94,19 +88,20 @@ export default function PetsPage() {
           />
         </div>
 
-        {/* Species filter - Scrollable on mobile */}
+        {/* Species filter pills - Scrollable */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 md:pb-0">
           {speciesOptions.map(opt => (
             <button
               key={opt.value}
               onClick={() => setSpeciesFilter(opt.value as any)}
-              className="whitespace-nowrap"
               style={{
                 padding: '0.375rem 0.875rem',
                 borderRadius: '99px',
                 fontSize: '0.8rem',
                 fontWeight: 500,
                 cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
                 border: speciesFilter === opt.value ? '1.5px solid var(--sage)' : '1.5px solid #e5e7eb',
                 background: speciesFilter === opt.value ? 'var(--sage-muted)' : 'white',
                 color: speciesFilter === opt.value ? 'var(--sage-dark)' : '#6b7280',
@@ -119,18 +114,16 @@ export default function PetsPage() {
         </div>
 
         {/* Temperament filter */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <SlidersHorizontal size={15} className="text-gray-400 hidden md:block" />
-          <select
-            value={temperamentFilter}
-            onChange={e => setTemperamentFilter(e.target.value)}
-            className="w-full md:w-auto border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none bg-white text-gray-700"
-          >
-            {temperamentOptions.map(opt => (
-              <option key={opt} value={opt}>{opt === 'all' ? 'All Temperaments' : opt}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={temperamentFilter}
+          onChange={e => setTemperamentFilter(e.target.value)}
+          className="w-full md:w-auto"
+          style={{ border: '1.5px solid #e5e7eb', borderRadius: '0.625rem', padding: '0.5rem 0.875rem', fontSize: '0.875rem', outline: 'none', background: 'white', color: '#374151' }}
+        >
+          {temperamentOptions.map(opt => (
+            <option key={opt} value={opt}>{opt === 'all' ? 'All Temperaments' : opt}</option>
+          ))}
+        </select>
       </div>
 
       {/* Gallery Grid */}

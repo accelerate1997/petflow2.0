@@ -8,6 +8,7 @@ interface KanbanBoardProps {
   appointments: Appointment[]
   onMove: (id: string, newStatus: AppointmentStatus) => void
   onPaymentUpdate: (id: string, status: string) => void
+  onRefresh: () => void
 }
 
 const columns: { key: AppointmentStatus; label: string; icon: string; color: string }[] = [
@@ -19,7 +20,7 @@ const columns: { key: AppointmentStatus; label: string; icon: string; color: str
   { key: 'CheckOut', label: 'Checked Out', icon: '💎', color: '#64748b' },
 ]
 
-export default function KanbanBoard({ appointments, onMove, onPaymentUpdate }: KanbanBoardProps) {
+export default function KanbanBoard({ appointments, onMove, onPaymentUpdate, onRefresh }: KanbanBoardProps) {
   return (
     <div className="flex gap-6 overflow-x-auto pb-8 min-h-[70vh] items-start scrollbar-hide">
       {columns.map((col) => {
@@ -62,6 +63,7 @@ export default function KanbanBoard({ appointments, onMove, onPaymentUpdate }: K
                     appointment={apt} 
                     onMove={onMove} 
                     onPaymentUpdate={onPaymentUpdate}
+                    onRefresh={onRefresh}
                   />
                 ))
               )}

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-sage: var(--sage);
+  --color-sage-dark: var(--sage-dark);
+  --color-sage-light: var(--sage-light);
+  --color-sage-muted: var(--sage-muted);
+  --color-sand: var(--sand);
+}
+
 :root {
   --sage: #89A894;
   --sage-dark: #6d8f7a;
@@ -87,11 +95,27 @@ html, body {
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
 }
+.input-field.pl-8 { padding-left: 2.25rem !important; }
+.input-field.pl-10 { padding-left: 2.75rem !important; }
+
 .input-field:focus {
   border-color: var(--sage);
   box-shadow: 0 0 0 3px rgba(137,168,148,0.15);
 }
 .input-field::placeholder { color: #b0b8c1; }
+
+/* Form Helper */
+.form-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.form-group > svg {
+  position: absolute;
+  left: 0.75rem;
+  pointer-events: none;
+  z-index: 10;
+}
 
 .modal-overlay {
   position: fixed;

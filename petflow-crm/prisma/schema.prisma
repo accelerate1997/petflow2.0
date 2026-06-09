@@ -9,8 +9,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id              String                @id @default(cuid())
+  name            String
+  domain          String?               @unique
+  created         DateTime              @default(now())
+  updated         DateTime              @updatedAt
+
+  users           User[]
+  clients         Client[]
+  pets            Pet[]
+  services        Service[]
+  products        Product[]
+  staff           Staff[]
+  appointments    Appointment[]
+  invoices        Invoice[]
+  sales           Sale[]
+  settings        Settings[]
+  whatsapp        WhatsAppConfig[]
+  chat_sessions   ChatSession[]
+  campaigns       Campaign[]
+  petro_configs   PetroConfig[]
+  boarding_rooms  BoardingRoom[]
+  boarding_res    BoardingReservation[]
+  invites         StaffInvite[]
+  payment_links   PaymentLink[]
+  payment_configs PaymentConfig[]
+  webhook_endpoints WebhookEndpoint[]
+}
+
 model Client {
   id              String        @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?       @relation(fields: [tenantId], references: [id])
   name            String
   whatsapp_number String?
   email           String?
@@ -20,39 +51,93 @@ model Client {
   created         DateTime      @default(now())
   updated         DateTime      @updatedAt
   pets            Pet[]
+  sales           Sale[]
+  invoices        Invoice[]
+  chat_sessions   ChatSession[]
 }
 
 model Pet {
-  id                String        @id @default(cuid())
+  id                String               @id @default(cuid())
+  tenantId          String?
+  tenant            Tenant?              @relation(fields: [tenantId], references: [id])
   pet_name          String
-  species           String?       // dog, cat, other
+  species           String?              // dog, cat, other
   breed             String?
   weight            Float?
   temperament_notes String?
   medical_alerts    String?
   photo             String?
   owner_id          String
-  owner             Client        @relation(fields: [owner_id], references: [id])
+  owner             Client               @relation(fields: [owner_id], references: [id])
   appointments      Appointment[]
-  created           DateTime      @default(now())
-  updated           DateTime      @updatedAt
+  vaccinations      VaccinationRecord[]
+  boarding_reservations BoardingReservation[]
+  created           DateTime             @default(now())
+  updated           DateTime             @updatedAt
 }
 
 model Service {
-  id           String   @id @default(cuid())
-  service_name String
-  pet_type     String?  // dog, cat, other, all
-  description  String?
-  price        Float
-  thumbnail    String?
-  created      DateTime @default(now())
-  updated      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  tenantId           String?
+  tenant             Tenant?  @relation(fields: [tenantId], references: [id])
+  service_name       String
+  pet_type           String?  // dog, cat, other, all
+  description        String?
+  price              Float    // Base / fallback price
+  price_small        Float?   // Price for small pets (< 10kg)
+  price_medium       Float?   // Price for medium pets (10-25kg)
+  price_large        Float?   // Price for large pets (> 25kg)
+  thumbnail          String?
+  estimated_duration Int      @default(60) // in minutes
+  created            DateTime @default(now())
+  updated            DateTime @updatedAt
+}
+
+model Product {
+  id                  String   @id @default(cuid())
+  tenantId            String?
+  tenant              Tenant?  @relation(fields: [tenantId], references: [id])
+  name                String
+  sku                 String?  @unique
+  category            String?  // Shampoo, Conditioner, Treats, Accessories, Supplies, Equipment
+  description         String?
+  retail_price        Float
+  cost_price          Float?
+  stock               Int      @default(0)
+  low_stock_threshold Int      @default(5)
+  unit                String?  @default("pcs") // pcs, ml, kg, g
+  image_url           String?
+  is_active           Boolean  @default(true)
+  created             DateTime @default(now())
+  updated             DateTime @updatedAt
+  sales               Sale[]
+  stock_logs          StockLog[]
+}
+
+model Staff {
+  id             String        @id @default(cuid())
+  tenantId       String?
+  tenant         Tenant?       @relation(fields: [tenantId], references: [id])
+  name           String
+  phone          String?
+  email          String?
+  role           String?       // Senior Groomer, Groomer, Assistant, Manager
+  specialization String?       // e.g. Dog grooming, Cat grooming
+  status         String        @default("Active") // Active, Inactive
+  working_hours  Json?         @default("{}") // Daily schedule
+  created        DateTime      @default(now())
+  updated        DateTime      @updatedAt
+  appointments   Appointment[]
 }
 
 model Appointment {
   id               String   @id @default(cuid())
+  tenantId         String?
+  tenant           Tenant?  @relation(fields: [tenantId], references: [id])
   pet_id           String
   pet              Pet      @relation(fields: [pet_id], references: [id])
+  groomer_id       String?
+  groomer          Staff?   @relation(fields: [groomer_id], references: [id])
   service_type     String
   appointment_date String
   appointment_time String
@@ -60,24 +145,88 @@ model Appointment {
   payment_status   String   @default("Pending") // Pending, Cash, UPI
   price            Float?
   notes            String?
+  grooming_notes   String?
+  before_photos    String[] @default([])
+  after_photos     String[] @default([])
   created          DateTime @default(now())
   updated          DateTime @updatedAt
+  invoice          Invoice?
+  boarding_reservation_id String?
+  boarding_reservation    BoardingReservation? @relation(fields: [boarding_reservation_id], references: [id], onDelete: SetNull)
+}
+
+model Invoice {
+  id                      String               @id @default(cuid())
+  tenantId                String?
+  tenant                  Tenant?              @relation(fields: [tenantId], references: [id])
+  invoice_number          String               @unique
+  appointment_id          String?              @unique
+  appointment             Appointment?         @relation(fields: [appointment_id], references: [id])
+  boarding_reservation_id String?              @unique
+  boarding_reservation    BoardingReservation? @relation(fields: [boarding_reservation_id], references: [id])
+  client_id               String?
+  client                  Client?              @relation(fields: [client_id], references: [id])
+  subtotal                Float
+  discount                Float                @default(0)
+  discount_type           String               @default("flat")    // "flat" | "percent"
+  tax_rate                Float                @default(0)          // e.g. 18 for 18% GST
+  tax_amount              Float                @default(0)
+  total_amount            Float
+  payment_method          String                            // "Cash" | "UPI" | "Split"
+  cash_amount             Float?
+  upi_amount              Float?
+  invoice_notes           String?
+  status                  String               @default("Paid")    // "Paid" | "Refunded" | "Partially Refunded" | "Void"
+  created                 DateTime             @default(now())
+  updated                 DateTime             @updatedAt
+  sales                   Sale[]
+  payment_links           PaymentLink[]
+}
+
+model Sale {
+  id                String   @id @default(cuid())
+  tenantId          String?
+  tenant            Tenant?  @relation(fields: [tenantId], references: [id])
+  invoice_id        String?
+  invoice           Invoice? @relation(fields: [invoice_id], references: [id])
+  client_id         String?
+  client            Client?  @relation(fields: [client_id], references: [id])
+  product_id        String
+  product           Product  @relation(fields: [product_id], references: [id])
+  quantity          Int
+  refunded_quantity Int      @default(0)
+  unit_price        Float
+  total_price       Float
+  boarding_reservation_id String?
+  boarding_reservation    BoardingReservation? @relation(fields: [boarding_reservation_id], references: [id], onDelete: SetNull)
+  created           DateTime @default(now())
 }
 
 model Settings {
   id              String   @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
   spa_name        String
+  logo_url        String?
+  primary_color   String   @default("#89A894")
+  secondary_color String   @default("#6d8f7a")
+  accent_color    String   @default("#e8f0eb")
   spa_whatsapp    String?
   spa_email       String?
   spa_address     String?
   business_hours  Json?
   currency_symbol String?  @default("₹")
+  currency_code   String?  @default("INR")
+  boarding_enabled Boolean  @default(true)
+  retail_enabled   Boolean  @default(true)
   created         DateTime @default(now())
   updated         DateTime @updatedAt
 }
 
 model WhatsAppConfig {
   id                String   @id @default(cuid())
+  tenantId          String?
+  tenant            Tenant?  @relation(fields: [tenantId], references: [id])
   evolution_api_url String?
   evolution_api_key String?
   instance_name     String?
@@ -85,6 +234,259 @@ model WhatsAppConfig {
   agent_public_url  String?
   booking_link      String?
   spa_name          String?
+  system_prompt     String?
   created           DateTime @default(now())
   updated           DateTime @updatedAt
 }
+
+model ChatSession {
+  id              String        @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?       @relation(fields: [tenantId], references: [id])
+  phone           String        @unique
+  client_id       String?
+  client          Client?       @relation(fields: [client_id], references: [id])
+  last_message    String?
+  is_paused       Boolean       @default(false)
+  created         DateTime      @default(now())
+  updated         DateTime      @updatedAt
+  messages        ChatMessage[]
+}
+
+model ChatMessage {
+  id              String      @id @default(cuid())
+  session_id      String
+  session         ChatSession @relation(fields: [session_id], references: [id])
+  role            String      // "user" | "assistant" | "system" | "tool"
+  content         String      @db.Text
+  tool_call_id    String?
+  name            String?     // Name of the tool called
+  created         DateTime    @default(now())
+}
+
+model VaccinationRecord {
+  id             String   @id @default(cuid())
+  pet_id         String
+  pet            Pet      @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  vaccine_name   String   // e.g., Rabies, DHPP, Bordetella, FVRCP
+  administered   DateTime
+  due_date       DateTime // Next booster date
+  status         String   // "Active" | "Overdue" | "Due Soon"
+  notes          String?
+  created        DateTime @default(now())
+  updated        DateTime @updatedAt
+}
+
+model StockLog {
+  id         String   @id @default(cuid())
+  product_id String
+  product    Product  @relation(fields: [product_id], references: [id])
+  quantity   Int      // Positive for additions, negative for sales
+  type       String   // "Sale", "Replenishment", "Return", "Manual Adjustment", "Damage/Loss"
+  cost_price Float?
+  notes      String?
+  created    DateTime @default(now())
+}
+
+model Campaign {
+  id             String        @id @default(cuid())
+  tenantId       String?
+  tenant         Tenant?       @relation(fields: [tenantId], references: [id])
+  name           String
+  message        String        @db.Text
+  mediaUrl       String?
+  segmentFilters Json
+  status         String        @default("Draft") // "Draft" | "Sending" | "Completed" | "Failed"
+  sentCount      Int           @default(0)
+  failedCount    Int           @default(0)
+  created        DateTime      @default(now())
+  updated        DateTime      @updatedAt
+  logs           CampaignLog[]
+}
+
+model CampaignLog {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clientName  String
+  phone       String
+  status      String   // "Sent" | "Failed"
+  error       String?
+  sentAt      DateTime @default(now())
+}
+
+model PetroConfig {
+  id              String   @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
+  agent_name      String   @default("Petro")
+  persona         String   @db.Text @default("")
+  tone            String   @default("friendly")
+  language        String   @default("en")
+  booking_rules   Json     @default("{}")
+  tools_enabled   String[] @default([])
+  knowledge_base  Json     @default("[]")
+  plan_tier       String   @default("starter")
+  is_active       Boolean  @default(true)
+  created         DateTime @default(now())
+  updated         DateTime @updatedAt
+}
+
+model BoardingRoom {
+  id              String               @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?              @relation(fields: [tenantId], references: [id])
+  name            String               // e.g. "Kennel A1", "Suite S1"
+  room_type       String               @default("Standard") // Standard, Deluxe, Suite
+  size_category   String               @default("Medium")   // Small, Medium, Large, Cat
+  pet_type        String               @default("all")      // dog, cat, all
+  price_per_night Float
+  capacity        Int                  @default(1)
+  status          String               @default("Available") // Available, Maintenance
+  notes           String?
+  created         DateTime             @default(now())
+  updated         DateTime             @updatedAt
+  reservations    BoardingReservation[]
+}
+
+model BoardingReservation {
+  id                String       @id @default(cuid())
+  tenantId          String?
+  tenant            Tenant?      @relation(fields: [tenantId], references: [id])
+  room_id           String
+  room              BoardingRoom @relation(fields: [room_id], references: [id])
+  pet_id            String
+  pet               Pet          @relation(fields: [pet_id], references: [id])
+  check_in_date     String       // YYYY-MM-DD
+  check_out_date    String       // YYYY-MM-DD
+  total_nights      Int
+  total_amount      Float
+  status            String       @default("Reserved") // Reserved, CheckedIn, CheckedOut, Cancelled
+  payment_status    String       @default("Pending")  // Pending, Cash, UPI, Split, Paid
+  payment_method    String?
+  special_notes     String?
+  feeding_notes     String?
+  medication_notes  String?
+  emergency_contact String?
+  check_in_weight   Float?
+  check_in_belongings String?
+  check_in_health   String?
+  check_in_signature String?
+  invoice           Invoice?
+  care_logs         BoardingCareLog[]
+  appointments      Appointment[]
+  sales             Sale[]
+  created           DateTime     @default(now())
+  updated           DateTime     @updatedAt
+}
+
+model BoardingCareLog {
+  id             String              @id @default(cuid())
+  reservation_id String
+  reservation    BoardingReservation @relation(fields: [reservation_id], references: [id], onDelete: Cascade)
+  date           String              // YYYY-MM-DD
+  activity_type  String              // Feeding, Medication, Potty, Mood, General
+  status         String              // Completed, Refused, Pee & Poop, Happy, etc.
+  notes          String?
+  photo_url      String?
+  logged_by      String?             // Name of staff member
+  created_at     DateTime            @default(now())
+}
+
+model User {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+  name          String
+  email         String   @unique
+  password      String   // Hashed password
+  role          String   @default("Staff") // "SuperAdmin" | "SpaAdmin" | "Staff"
+  status        String   @default("Active") // "Active" | "Inactive"
+  image         String?
+  created       DateTime @default(now())
+  updated       DateTime @updatedAt
+
+  sent_invites  StaffInvite[] @relation("InvitedBy")
+}
+
+model StaffInvite {
+  id          String    @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
+  email       String
+  token       String    @unique
+  role        String    @default("Staff")  // "Staff" | "SpaAdmin"
+  expires_at  DateTime
+  used_at     DateTime?
+  invited_by  String
+  inviter     User      @relation("InvitedBy", fields: [invited_by], references: [id])
+  created     DateTime  @default(now())
+}
+
+model PaymentLink {
+  id                  String    @id @default(cuid())
+  tenantId            String?
+  tenant              Tenant?   @relation(fields: [tenantId], references: [id])
+  invoice_id          String
+  invoice             Invoice   @relation(fields: [invoice_id], references: [id])
+  provider            String    // "razorpay" | "stripe"
+  provider_link_id    String?   // Razorpay plink_xxx or Stripe cs_xxx
+  url                 String    // The payment URL sent to customer
+  amount              Float
+  currency            String    @default("INR")
+  status              String    @default("created") // "created" | "paid" | "expired" | "cancelled"
+  paid_at             DateTime?
+  provider_payment_id String?   // razorpay_payment_id or stripe payment_intent_id
+  created             DateTime  @default(now())
+  updated             DateTime  @updatedAt
+}
+
+model PaymentConfig {
+  id                        String   @id @default(cuid())
+  tenantId                  String?
+  tenant                    Tenant?  @relation(fields: [tenantId], references: [id])
+  // Razorpay
+  razorpay_enabled          Boolean  @default(false)
+  razorpay_key_id           String?
+  razorpay_key_secret       String?
+  razorpay_webhook_secret   String?
+  // Stripe
+  stripe_enabled            Boolean  @default(false)
+  stripe_secret_key         String?
+  stripe_webhook_secret     String?
+  stripe_publishable_key    String?
+  // General
+  default_provider          String   @default("razorpay") // "razorpay" | "stripe"
+  created                   DateTime @default(now())
+  updated                   DateTime @updatedAt
+}
+
+// ─── Outgoing Webhooks ────────────────────────────────────────────────────────
+
+model WebhookEndpoint {
+  id        String       @id @default(cuid())
+  tenantId  String?
+  tenant    Tenant?      @relation(fields: [tenantId], references: [id])
+  name      String                       // e.g. "Make — New Booking"
+  url       String                       // Target URL from Make/Zapier/n8n
+  secret    String?                      // Optional HMAC-SHA256 signing secret
+  events    String[]     @default([])    // ["appointment.created", "invoice.created", ...]
+  is_active Boolean      @default(true)
+  created   DateTime     @default(now())
+  updated   DateTime     @updatedAt
+  logs      WebhookLog[]
+}
+
+model WebhookLog {
+  id          String          @id @default(cuid())
+  endpoint_id String
+  endpoint    WebhookEndpoint @relation(fields: [endpoint_id], references: [id], onDelete: Cascade)
+  event       String          // e.g. "appointment.created"
+  status_code Int?            // HTTP response status (200, 404, 500…)
+  success     Boolean         @default(false)
+  payload     Json            // Full payload sent
+  response    String?         @db.Text  // Response body (truncated to 500 chars)
+  duration_ms Int?            // Request round-trip time in ms
+  created     DateTime        @default(now())
+}
+
