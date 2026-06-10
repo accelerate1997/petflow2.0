@@ -908,7 +908,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
 
     } catch (error) {
         console.error('[Petro Error]:', error.message);
-        return `🐾 Sorry, I ran into a little issue: ${error.message}. Please try again shortly!`;
+        return "🐾 Sorry, I ran into a little issue. Please try again shortly!";
     }
 }
 
