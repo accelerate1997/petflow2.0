@@ -563,7 +563,14 @@ export default function SettingsPage() {
     try {
       const { id, ...data } = waConfig
       await updateWhatsAppConfig(id || null, data)
-      setWaMessage({ type: 'success', text: 'WhatsApp configuration saved! ✅' })
+      
+      // If connected, sync/register the webhook on Evolution API
+      if (waConnected && waConfig.evolution_api_url && waConfig.evolution_api_key) {
+        const cleanUrl = waConfig.evolution_api_url.endsWith('/') ? waConfig.evolution_api_url.slice(0, -1) : waConfig.evolution_api_url
+        await registerWebhook(cleanUrl)
+      }
+
+      setWaMessage({ type: 'success', text: 'WhatsApp configuration saved and synced! ✅' })
       setTimeout(() => setWaMessage(null), 3000)
       loadWhatsAppConfigData()
       router.refresh()
