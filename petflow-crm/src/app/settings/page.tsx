@@ -375,7 +375,10 @@ export default function SettingsPage() {
       return false
     }
 
-    const cleanAgentUrl = agentUrl.endsWith('/') ? agentUrl.slice(0, -1) : agentUrl
+    let cleanAgentUrl = agentUrl.endsWith('/') ? agentUrl.slice(0, -1) : agentUrl
+    if (cleanAgentUrl.toLowerCase().endsWith('/webhook')) {
+      cleanAgentUrl = cleanAgentUrl.slice(0, -8)
+    }
     const webhookUrl = `${cleanAgentUrl}/webhook`
 
     try {

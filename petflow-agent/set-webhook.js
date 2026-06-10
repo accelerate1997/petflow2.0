@@ -14,7 +14,11 @@ async function setWebhook() {
         process.exit(1);
     }
 
-    const webhookUrl = `${agentUrl}/webhook`;
+    let cleanAgentUrl = agentUrl.endsWith('/') ? agentUrl.slice(0, -1) : agentUrl;
+    if (cleanAgentUrl.toLowerCase().endsWith('/webhook')) {
+        cleanAgentUrl = cleanAgentUrl.slice(0, -8);
+    }
+    const webhookUrl = `${cleanAgentUrl}/webhook`;
     console.log(`\n🔧 Registering SECURE webhook for instance: ${instanceName}`);
     console.log(`📡 Webhook URL: ${webhookUrl}`);
 
