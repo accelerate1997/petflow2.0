@@ -156,8 +156,12 @@ app.get('/health', (req, res) => {
 app.post('/webhook', webhookLimiter, async (req, res) => {
     const requestApiKey = req.headers['apikey'] || req.headers['x-api-key'] || req.query.apikey;
     const localApiKey = process.env.EVOLUTION_API_KEY;
+    const petflowApiKey = process.env.PETFLOW_API_KEY;
 
-    if (localApiKey && requestApiKey !== localApiKey) {
+    const hasExpectedKeys = !!(localApiKey || petflowApiKey);
+    const matchesAnyKey = (localApiKey && requestApiKey === localApiKey) || (petflowApiKey && requestApiKey === petflowApiKey);
+
+    if (hasExpectedKeys && !matchesAnyKey) {
         console.warn(`[WEBHOOK] Unauthorized connection attempt. Invalid apikey.`);
         return res.status(401).json({ error: 'Unauthorized: Invalid apikey header' });
     }

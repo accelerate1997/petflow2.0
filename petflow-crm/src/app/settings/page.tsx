@@ -390,6 +390,9 @@ export default function SettingsPage() {
           webhook: {
             enabled: true,
             url: webhookUrl,
+            headers: {
+              "apikey": waConfig.evolution_api_key
+            },
             webhook_by_events: false,
             webhook_base64: false,
             events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE']
