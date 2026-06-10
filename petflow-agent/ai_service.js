@@ -792,6 +792,16 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
             return null;
         }
 
+        // Load WhatsApp config from DB to get the OpenAI API key
+        const whatsAppConfig = await prisma.whatsAppConfig.findFirst(
+            session.tenantId ? { where: { tenantId: session.tenantId } } : undefined
+        );
+        const openAiKey = whatsAppConfig?.openai_api_key || process.env.OPENAI_API_KEY;
+        if (!openAiKey) {
+            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
+        }
+        const clientOpenai = new OpenAI({ apiKey: openAiKey });
+
         const systemPrompt = await buildSystemPrompt(session.tenantId);
 
         const chatContext = [
@@ -834,7 +844,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         const enabledToolNames = getEnabledToolNames(petroConfig);
         const filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
 
-        let response = await openai.chat.completions.create({
+        let response = await clientOpenai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: chatContext,
             tools: filteredTools.length > 0 ? filteredTools : tools,
@@ -878,7 +888,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
             }
 
             // Get final response from AI after tool results
-            response = await openai.chat.completions.create({
+            response = await clientOpenai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: chatContext,
             });
@@ -944,6 +954,12 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
             prisma.whatsAppConfig.findFirst(tenantId ? { where: { tenantId } } : undefined),
             prisma.settings.findFirst(tenantId ? { where: { tenantId } } : undefined),
         ]);
+
+        const openAiKey = whatsAppConfig?.openai_api_key || process.env.OPENAI_API_KEY;
+        if (!openAiKey) {
+            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
+        }
+        const clientOpenai = new OpenAI({ apiKey: openAiKey });
         
         // 2. Compile draft system prompt
         const systemPrompt = compileSystemPrompt(draftConfig, whatsAppConfig, settings);
@@ -960,7 +976,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
         executionLogs.push(`[Tools Gating] Enabled tools: [${enabledToolNames.join(', ')}].`);
 
         executionLogs.push(`[OpenAI] Sending chat completion request...`);
-        let response = await openai.chat.completions.create({
+        let response = await clientOpenai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: chatContext,
             tools: filteredTools.length > 0 ? filteredTools : undefined,
@@ -1000,7 +1016,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
             }
 
             executionLogs.push(`[OpenAI] Sending second completion request with tool results...`);
-            response = await openai.chat.completions.create({
+            response = await clientOpenai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: chatContext,
             });
