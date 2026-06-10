@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 const { buildSystemPrompt, loadConfig, getEnabledToolNames, getBookingRules } = require('./petro_config_loader');
 const { validateBookingSlot } = require('./booking_rules_engine');
+const { decrypt } = require('./encryption');
 
 // System prompt is now built dynamically from PetroConfig DB via petro_config_loader.js
 // buildSystemPrompt() is imported from petro_config_loader
@@ -796,7 +797,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         const whatsAppConfig = await prisma.whatsAppConfig.findFirst(
             session.tenantId ? { where: { tenantId: session.tenantId } } : undefined
         );
-        const openAiKey = whatsAppConfig?.openai_api_key || process.env.OPENAI_API_KEY;
+        const openAiKey = decrypt(whatsAppConfig?.openai_api_key) || process.env.OPENAI_API_KEY;
         if (!openAiKey) {
             throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
         }
@@ -955,7 +956,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
             prisma.settings.findFirst(tenantId ? { where: { tenantId } } : undefined),
         ]);
 
-        const openAiKey = whatsAppConfig?.openai_api_key || process.env.OPENAI_API_KEY;
+        const openAiKey = decrypt(whatsAppConfig?.openai_api_key) || process.env.OPENAI_API_KEY;
         if (!openAiKey) {
             throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
         }
