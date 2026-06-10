@@ -334,8 +334,11 @@ export default function SettingsPage() {
     setWaChecking(true)
     try {
       const cleanUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl
-      const res = await fetch(`${cleanUrl}/instance/connectionState/${instanceName}`, {
-        headers: { 'apikey': apiKey }
+      const res = await fetch(`/api/evolution-proxy/instance/connectionState/${instanceName}`, {
+        headers: {
+          'x-target-url': cleanUrl,
+          'x-api-key': apiKey
+        }
       })
       if (res.ok) {
         const data = await res.json()
@@ -376,11 +379,12 @@ export default function SettingsPage() {
     const webhookUrl = `${cleanAgentUrl}/webhook`
 
     try {
-      const res = await fetch(`${cleanUrl}/webhook/set/${waConfig.instance_name}`, {
+      const res = await fetch(`/api/evolution-proxy/webhook/set/${waConfig.instance_name}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': waConfig.evolution_api_key
+          'x-target-url': cleanUrl,
+          'x-api-key': waConfig.evolution_api_key
         },
         body: JSON.stringify({
           webhook: {
@@ -425,11 +429,12 @@ export default function SettingsPage() {
       const cleanUrl = waConfig.evolution_api_url.endsWith('/') ? waConfig.evolution_api_url.slice(0, -1) : waConfig.evolution_api_url
 
       // Try to create instance first (may already exist)
-      await fetch(`${cleanUrl}/instance/create`, {
+      await fetch(`/api/evolution-proxy/instance/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': waConfig.evolution_api_key
+          'x-target-url': cleanUrl,
+          'x-api-key': waConfig.evolution_api_key
         },
         body: JSON.stringify({
           instanceName: waConfig.instance_name,
@@ -439,8 +444,11 @@ export default function SettingsPage() {
       }).catch(() => { })
 
       // Get QR code for connection
-      const qrRes = await fetch(`${cleanUrl}/instance/connect/${waConfig.instance_name}`, {
-        headers: { 'apikey': waConfig.evolution_api_key }
+      const qrRes = await fetch(`/api/evolution-proxy/instance/connect/${waConfig.instance_name}`, {
+        headers: {
+          'x-target-url': cleanUrl,
+          'x-api-key': waConfig.evolution_api_key
+        }
       })
 
       if (qrRes.ok) {
@@ -453,8 +461,11 @@ export default function SettingsPage() {
           // Poll for connection status
           const pollInterval = setInterval(async () => {
             try {
-              const stateRes = await fetch(`${cleanUrl}/instance/connectionState/${waConfig.instance_name}`, {
-                headers: { 'apikey': waConfig.evolution_api_key }
+              const stateRes = await fetch(`/api/evolution-proxy/instance/connectionState/${waConfig.instance_name}`, {
+                headers: {
+                  'x-target-url': cleanUrl,
+                  'x-api-key': waConfig.evolution_api_key
+                }
               })
               if (stateRes.ok) {
                 const stateData = await stateRes.json()
@@ -527,9 +538,12 @@ export default function SettingsPage() {
 
     try {
       const cleanUrl = waConfig.evolution_api_url.endsWith('/') ? waConfig.evolution_api_url.slice(0, -1) : waConfig.evolution_api_url
-      await fetch(`${cleanUrl}/instance/logout/${waConfig.instance_name}`, {
+      await fetch(`/api/evolution-proxy/instance/logout/${waConfig.instance_name}`, {
         method: 'DELETE',
-        headers: { 'apikey': waConfig.evolution_api_key }
+        headers: {
+          'x-target-url': cleanUrl,
+          'x-api-key': waConfig.evolution_api_key
+        }
       })
     } catch { }
 
