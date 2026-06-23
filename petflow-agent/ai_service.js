@@ -489,13 +489,18 @@ const toolImplementations = {
         try {
             const tenantId = getTenantIdFromParam(tenantIdOrConfig);
             const cleanPhone = phone.slice(-10);
+            const todayStr = new Date().toLocaleDateString('en-CA');
             const client = await prisma.client.findFirst({
                 where: { whatsapp_number: { contains: cleanPhone }, tenantId },
                 include: { 
                     pets: {
                         include: {
                             appointments: {
-                                where: { status: { in: ['Booked', 'Confirmed'] }, tenantId },
+                                where: { 
+                                    status: { in: ['Booked', 'Confirmed'] }, 
+                                    tenantId,
+                                    appointment_date: { gte: todayStr }
+                                },
                                 orderBy: { appointment_date: 'asc' },
                                 take: 5
                             }
