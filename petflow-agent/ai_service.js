@@ -180,11 +180,11 @@ const tools = [
     }
 ];
 
-async function validateGroomerAvailability(appointmentId, date, time, serviceType, groomerId) {
+async function validateGroomerAvailability(appointmentId, date, time, serviceType, groomerId, tenantId = 'default-tenant-id') {
     // 1. Calculate duration for the service type
     const serviceNames = serviceType.split('+').map(s => s.trim());
     const matchingServices = await prisma.service.findMany({
-        where: { service_name: { in: serviceNames } }
+        where: { service_name: { in: serviceNames }, tenantId }
     });
     const duration = matchingServices.reduce((sum, s) => sum + s.estimated_duration, 0) || 60;
 
@@ -231,7 +231,8 @@ async function validateGroomerAvailability(appointmentId, date, time, serviceTyp
                 appointment_date: date,
                 groomer_id: gId,
                 id: appointmentId ? { not: appointmentId } : undefined,
-                status: { notIn: ['Cancelled', 'No-show', 'Done'] }
+                status: { notIn: ['Cancelled', 'No-show', 'Done'] },
+                tenantId
             }
         });
 
@@ -239,7 +240,7 @@ async function validateGroomerAvailability(appointmentId, date, time, serviceTyp
             // Find duration of existing appointment
             const exServiceNames = app.service_type.split('+').map(s => s.trim());
             const exMatchingServices = await prisma.service.findMany({
-                where: { service_name: { in: exServiceNames } }
+                where: { service_name: { in: exServiceNames }, tenantId }
             });
             const exDuration = exMatchingServices.reduce((sum, s) => sum + s.estimated_duration, 0) || 60;
 
@@ -257,7 +258,7 @@ async function validateGroomerAvailability(appointmentId, date, time, serviceTyp
 
     if (groomerId) {
         // Check specific groomer
-        const groomer = await prisma.staff.findUnique({ where: { id: groomerId } });
+        const groomer = await prisma.staff.findFirst({ where: { id: groomerId, tenantId } });
         if (!groomer) {
             return { success: false, groomerId: null, error: 'Groomer not found.' };
         }
@@ -279,7 +280,8 @@ async function validateGroomerAvailability(appointmentId, date, time, serviceTyp
         const activeGroomers = await prisma.staff.findMany({
             where: {
                 status: 'Active',
-                role: { in: ['Groomer', 'Senior Groomer'] }
+                role: { in: ['Groomer', 'Senior Groomer'] },
+                tenantId
             }
         });
 
@@ -315,13 +317,20 @@ function minutesToTimeStr(totalMinutes) {
 
 /**
  * Implementation of the tool functions
- */
+function getTenantIdFromParam(tenantIdOrConfig) {
+    if (tenantIdOrConfig && typeof tenantIdOrConfig === 'object') {
+        return tenantIdOrConfig.tenantId || 'default-tenant-id';
+    }
+    return tenantIdOrConfig || 'default-tenant-id';
+}
+
 const toolImplementations = {
-    search_client_and_pets: async ({ phone }) => {
+    search_client_and_pets: async ({ phone }, tenantIdOrConfig = null) => {
         try {
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
             const cleanPhone = phone.slice(-10);
             const client = await prisma.client.findFirst({
-                where: { whatsapp_number: { contains: cleanPhone } },
+                where: { whatsapp_number: { contains: cleanPhone }, tenantId },
                 include: { pets: true }
             });
             if (!client) return { found: false, message: "No client found with this number." };
@@ -342,13 +351,15 @@ const toolImplementations = {
             return { error: "Failed to search database." };
         }
     },
-    create_client_profile: async ({ name, phone, email }) => {
+    create_client_profile: async ({ name, phone, email }, tenantIdOrConfig = null) => {
         try {
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
             const client = await prisma.client.create({
                 data: {
                     name,
                     whatsapp_number: phone,
-                    email: email || null
+                    email: email || null,
+                    tenantId
                 }
             });
             return { success: true, message: `Profile created for ${name}`, client_id: client.id };
@@ -357,11 +368,12 @@ const toolImplementations = {
             return { success: false, error: "Could not create profile. It may already exist." };
         }
     },
-    add_pet_to_profile: async ({ phone, pet_name, species, breed }) => {
+    add_pet_to_profile: async ({ phone, pet_name, species, breed }, tenantIdOrConfig = null) => {
         try {
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
             const cleanPhone = phone.slice(-10);
             const client = await prisma.client.findFirst({
-                where: { whatsapp_number: { contains: cleanPhone } }
+                where: { whatsapp_number: { contains: cleanPhone }, tenantId }
             });
             if (!client) return { success: false, message: "Client not found. Create a profile first." };
 
@@ -370,7 +382,8 @@ const toolImplementations = {
                     pet_name,
                     species,
                     breed: breed || null,
-                    owner_id: client.id
+                    owner_id: client.id,
+                    tenantId
                 }
             });
             return { success: true, message: `${pet_name} added to ${client.name}'s profile.`, pet_id: pet.id };
@@ -379,17 +392,19 @@ const toolImplementations = {
             return { success: false, error: "Failed to add pet." };
         }
     },
-    create_appointment: async ({ pet_id, service_type, appointment_date, appointment_time, notes }, draftConfig = null, executionLogs = null) => {
+    create_appointment: async ({ pet_id, service_type, appointment_date, appointment_time, notes }, draftConfig = null, executionLogs = null, tenantIdOrConfig = null) => {
         try {
-            // Resolve pet_id (could be name or ID)
-            let pet = await prisma.pet.findUnique({
-                where: { id: pet_id }
+            const tenantId = getTenantIdFromParam(draftConfig || tenantIdOrConfig);
+            
+            // Resolve pet_id (could be name or ID) within tenant
+            let pet = await prisma.pet.findFirst({
+                where: { id: pet_id, tenantId }
             }).catch(() => null);
 
             if (!pet) {
-                // Try searching by name case-insensitively
+                // Try searching by name case-insensitively within tenant
                 pet = await prisma.pet.findFirst({
-                    where: { pet_name: { equals: pet_id, mode: 'insensitive' } }
+                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId }
                 });
             }
 
@@ -404,8 +419,10 @@ const toolImplementations = {
                 };
             }
 
+            const resolvedTenantId = pet.tenantId || tenantId;
+
             // Booking Rules Engine — validate against PetroConfig rules
-            const petroConfig = draftConfig || await loadConfig();
+            const petroConfig = draftConfig || await loadConfig(resolvedTenantId);
             const rules = getBookingRules(petroConfig);
             const slotDuration = rules.slot_duration || 60;
             const rulesCheck = validateBookingSlot(
@@ -422,7 +439,7 @@ const toolImplementations = {
             }
 
             // Groomer availability check
-            const check = await validateGroomerAvailability(null, appointment_date, appointment_time, service_type, null);
+            const check = await validateGroomerAvailability(null, appointment_date, appointment_time, service_type, null, resolvedTenantId);
 
             if (executionLogs) {
                 executionLogs.push(`[Groomer Availability] Checking staff for ${service_type}. Result: ${check.success ? 'AVAILABLE (Groomer ID: ' + check.groomerId + ')' : 'UNAVAILABLE: ' + check.error}`);
@@ -440,14 +457,15 @@ const toolImplementations = {
                     appointment_time,
                     notes: notes || null,
                     status: 'Booked',
-                    groomer_id: check.groomerId
+                    groomer_id: check.groomerId,
+                    tenantId: resolvedTenantId
                 }
             });
 
             // Check for overdue vaccines
             const overdue = await prisma.vaccinationRecord.findMany({
                 where: {
-                    pet_id,
+                    pet_id: pet.id,
                     status: 'Overdue'
                 }
             });
@@ -466,16 +484,17 @@ const toolImplementations = {
             return { success: false, error: "Failed to book appointment." };
         }
     },
-    get_upcoming_appointments: async ({ phone }) => {
+    get_upcoming_appointments: async ({ phone }, tenantIdOrConfig = null) => {
         try {
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
             const cleanPhone = phone.slice(-10);
             const client = await prisma.client.findFirst({
-                where: { whatsapp_number: { contains: cleanPhone } },
+                where: { whatsapp_number: { contains: cleanPhone }, tenantId },
                 include: { 
                     pets: {
                         include: {
                             appointments: {
-                                where: { status: { in: ['Booked', 'Confirmed'] } },
+                                where: { status: { in: ['Booked', 'Confirmed'] }, tenantId },
                                 orderBy: { appointment_date: 'asc' },
                                 take: 5
                             }
@@ -501,10 +520,11 @@ const toolImplementations = {
             return { error: "Failed to fetch appointments." };
         }
     },
-    reschedule_appointment: async ({ appointment_id, new_date, new_time }) => {
+    reschedule_appointment: async ({ appointment_id, new_date, new_time }, tenantIdOrConfig = null) => {
         try {
-            const existing = await prisma.appointment.findUnique({
-                where: { id: appointment_id }
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
+            const existing = await prisma.appointment.findFirst({
+                where: { id: appointment_id, tenantId }
             });
             if (!existing) {
                 return { success: false, error: "Appointment not found." };
@@ -515,7 +535,8 @@ const toolImplementations = {
                 new_date,
                 new_time,
                 existing.service_type,
-                existing.groomer_id
+                existing.groomer_id,
+                tenantId
             );
             if (!check.success) {
                 return { success: false, error: check.error };
@@ -535,9 +556,12 @@ const toolImplementations = {
             return { success: false, error: "Failed to reschedule. Check the appointment ID." };
         }
     },
-    list_available_services: async () => {
+    list_available_services: async ({}, tenantIdOrConfig = null) => {
         try {
-            const services = await prisma.service.findMany();
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
+            const services = await prisma.service.findMany({
+                where: { tenantId }
+            });
             return services.map(s => ({
                 name: s.service_name,
                 price: s.price,
@@ -547,16 +571,17 @@ const toolImplementations = {
             return { error: "Failed to fetch services." };
         }
     },
-    get_vaccination_records: async ({ pet_id }) => {
+    get_vaccination_records: async ({ pet_id }, tenantIdOrConfig = null) => {
         try {
-            let pet = await prisma.pet.findUnique({
-                where: { id: pet_id },
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
+            let pet = await prisma.pet.findFirst({
+                where: { id: pet_id, tenantId },
                 include: { vaccinations: true }
             }).catch(() => null);
 
             if (!pet) {
                 pet = await prisma.pet.findFirst({
-                    where: { pet_name: { equals: pet_id, mode: 'insensitive' } },
+                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId },
                     include: { vaccinations: true }
                 });
             }
@@ -581,15 +606,16 @@ const toolImplementations = {
             return { success: false, error: "Failed to fetch vaccination records." };
         }
     },
-    check_boarding_availability: async ({ pet_id, check_in_date, check_out_date }) => {
+    check_boarding_availability: async ({ pet_id, check_in_date, check_out_date }, tenantIdOrConfig = null) => {
         try {
-            let pet = await prisma.pet.findUnique({
-                where: { id: pet_id }
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
+            let pet = await prisma.pet.findFirst({
+                where: { id: pet_id, tenantId }
             }).catch(() => null);
 
             if (!pet) {
                 pet = await prisma.pet.findFirst({
-                    where: { pet_name: { equals: pet_id, mode: 'insensitive' } }
+                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId }
                 });
             }
 
@@ -611,6 +637,7 @@ const toolImplementations = {
             const rooms = await prisma.boardingRoom.findMany({
                 where: {
                     status: 'Available',
+                    tenantId,
                     OR: [
                         { pet_type: 'all' },
                         { pet_type: species }
@@ -619,7 +646,8 @@ const toolImplementations = {
                 include: {
                     reservations: {
                         where: {
-                            status: { in: ['Reserved', 'CheckedIn'] }
+                            status: { in: ['Reserved', 'CheckedIn'] },
+                            tenantId
                         }
                     }
                 }
@@ -654,22 +682,23 @@ const toolImplementations = {
             return { success: false, error: "Failed to check boarding availability." };
         }
     },
-    create_boarding_reservation: async ({ pet_id, room_id, check_in_date, check_out_date, special_notes }) => {
+    create_boarding_reservation: async ({ pet_id, room_id, check_in_date, check_out_date, special_notes }, tenantIdOrConfig = null) => {
         try {
-            let pet = await prisma.pet.findUnique({
-                where: { id: pet_id }
+            const tenantId = getTenantIdFromParam(tenantIdOrConfig);
+            let pet = await prisma.pet.findFirst({
+                where: { id: pet_id, tenantId }
             }).catch(() => null);
 
             if (!pet) {
                 pet = await prisma.pet.findFirst({
-                    where: { pet_name: { equals: pet_id, mode: 'insensitive' } }
+                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId }
                 });
             }
 
             if (!pet) return { success: false, error: `Pet "${pet_id}" not found.` };
 
-            const room = await prisma.boardingRoom.findUnique({
-                where: { id: room_id }
+            const room = await prisma.boardingRoom.findFirst({
+                where: { id: room_id, tenantId }
             });
             if (!room) return { success: false, error: "Room not found." };
             if (room.status === 'Maintenance') return { success: false, error: "Room is currently under maintenance." };
@@ -679,7 +708,8 @@ const toolImplementations = {
                     room_id,
                     status: { in: ['Reserved', 'CheckedIn'] },
                     check_in_date: { lt: check_out_date },
-                    check_out_date: { gt: check_in_date }
+                    check_out_date: { gt: check_in_date },
+                    tenantId
                 }
             });
             if (overlaps) {
@@ -702,7 +732,8 @@ const toolImplementations = {
                     total_amount: totalAmount,
                     status: 'Reserved',
                     payment_status: 'Pending',
-                    special_notes: special_notes || null
+                    special_notes: special_notes || null,
+                    tenantId: pet.tenantId || tenantId
                 }
             });
 
@@ -761,18 +792,32 @@ async function getOrCreateSession(phone) {
         include: { messages: { orderBy: { created: 'asc' }, take: 50 } }
     });
 
+    const instanceName = process.env.INSTANCE_NAME || 'PetFlow_Spa';
+    const waConfig = await prisma.whatsAppConfig.findFirst({
+        where: { instance_name: instanceName }
+    });
+    const activeTenantId = waConfig?.tenantId || 'default-tenant-id';
+
     if (!session) {
         // Find client if exists
         const client = await prisma.client.findFirst({
-            where: { whatsapp_number: { contains: phone.slice(-10) } }
+            where: { whatsapp_number: { contains: phone.slice(-10) }, tenantId: activeTenantId }
         });
 
         session = await prisma.chatSession.create({
             data: {
                 phone,
                 client_id: client?.id,
+                tenantId: activeTenantId,
                 last_message: 'New Session'
             },
+            include: { messages: true }
+        });
+    } else if (!session.tenantId) {
+        // Populate tenant ID if it was null
+        session = await prisma.chatSession.update({
+            where: { id: session.id },
+            data: { tenantId: activeTenantId },
             include: { messages: true }
         });
     }
@@ -812,8 +857,13 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         const history = [];
         const messages = session.messages.filter(m => m.role !== 'system');
         
-        for (let i = 0; i < messages.length; i++) {
-            const m = messages[i];
+        // Prune history older than 6 hours to prevent LLM memory pollution
+        const SESSION_TIMEOUT_MS = 6 * 60 * 60 * 1000; 
+        const now = Date.now();
+        const freshMessages = messages.filter(m => (now - m.created.getTime()) < SESSION_TIMEOUT_MS);
+
+        for (let i = 0; i < freshMessages.length; i++) {
+            const m = freshMessages[i];
             const msg = { role: m.role, content: m.content };
             
             if (m.role === 'tool') {
@@ -841,7 +891,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         if (onMessageSaved && savedUserMsg) onMessageSaved(savedUserMsg);
 
         // Load config and get only enabled tools
-        const petroConfig = await loadConfig();
+        const petroConfig = await loadConfig(session.tenantId);
         const enabledToolNames = getEnabledToolNames(petroConfig);
         const filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
 
@@ -874,7 +924,12 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
                 
                 console.log(`[TOOL] Petro is calling: ${functionName}`);
                 
-                const toolResponse = await toolImplementations[functionName](functionArgs);
+                let toolResponse;
+                if (functionName === 'create_appointment') {
+                    toolResponse = await toolImplementations.create_appointment(functionArgs, null, null, session.tenantId);
+                } else {
+                    toolResponse = await toolImplementations[functionName](functionArgs, session.tenantId);
+                }
                 
                 // Save Tool Result
                 const savedToolMsg = await saveMessage(session.id, 'tool', JSON.stringify(toolResponse), toolCall.id, functionName);
