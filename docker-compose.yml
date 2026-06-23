@@ -1,19 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: petflow-db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: petflow2.0db
-      POSTGRES_PASSWORD: dssgrgodmmfeffbmertddgefvvmefvjfefvrgrvgg
-      POSTGRES_DB: postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   petflow-crm:
     build:
       context: ./petflow-crm
@@ -24,8 +11,6 @@ services:
       # Add necessary frontend environment variables here (or use .env.local file in petflow-crm)
       - NODE_ENV=production
     restart: unless-stopped
-    depends_on:
-      - db
 
   petflow-agent:
     build:
@@ -37,8 +22,3 @@ services:
       # Add necessary backend environment variables here (or use .env file in petflow-agent)
       - PORT=3002
     restart: unless-stopped
-    depends_on:
-      - db
-
-volumes:
-  pgdata:
