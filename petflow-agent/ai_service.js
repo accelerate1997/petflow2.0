@@ -182,10 +182,13 @@ const tools = [
 
 async function validateGroomerAvailability(appointmentId, date, time, serviceType, groomerId, tenantId = 'default-tenant-id') {
     // 1. Calculate duration for the service type
-    const serviceNames = serviceType.split('+').map(s => s.trim());
-    const matchingServices = await prisma.service.findMany({
-        where: { service_name: { in: serviceNames }, tenantId }
+    const serviceNames = serviceType.split('+').map(s => s.trim().toLowerCase());
+    const allServices = await prisma.service.findMany({
+        where: { tenantId }
     });
+    const matchingServices = allServices.filter(s => 
+        serviceNames.includes(s.service_name.trim().toLowerCase())
+    );
     const duration = matchingServices.reduce((sum, s) => sum + s.estimated_duration, 0) || 60;
 
     const [hours, minutes] = time.split(':').map(Number);
@@ -238,10 +241,10 @@ async function validateGroomerAvailability(appointmentId, date, time, serviceTyp
 
         for (const app of existingAppointments) {
             // Find duration of existing appointment
-            const exServiceNames = app.service_type.split('+').map(s => s.trim());
-            const exMatchingServices = await prisma.service.findMany({
-                where: { service_name: { in: exServiceNames }, tenantId }
-            });
+            const exServiceNames = app.service_type.split('+').map(s => s.trim().toLowerCase());
+            const exMatchingServices = allServices.filter(s => 
+                exServiceNames.includes(s.service_name.trim().toLowerCase())
+            );
             const exDuration = exMatchingServices.reduce((sum, s) => sum + s.estimated_duration, 0) || 60;
 
             const [exHours, exMinutes] = app.appointment_time.split(':').map(Number);
@@ -450,6 +453,32 @@ const toolImplementations = {
                 return { success: false, error: check.error };
             }
 
+            // Calculate price based on service and pet weight
+            const serviceNames = service_type.split('+').map(s => s.trim().toLowerCase());
+            const allServices = await prisma.service.findMany({
+                where: { tenantId: resolvedTenantId }
+            });
+            const matchingServices = allServices.filter(s => 
+                serviceNames.includes(s.service_name.trim().toLowerCase())
+            );
+
+            let finalPrice = 0;
+            if (matchingServices.length > 0) {
+                for (const s of matchingServices) {
+                    let servicePrice = s.price; // default fallback
+                    if (pet.weight) {
+                        if (pet.weight < 10 && s.price_small !== null && s.price_small !== undefined) {
+                            servicePrice = s.price_small;
+                        } else if (pet.weight >= 10 && pet.weight <= 25 && s.price_medium !== null && s.price_medium !== undefined) {
+                            servicePrice = s.price_medium;
+                        } else if (pet.weight > 25 && s.price_large !== null && s.price_large !== undefined) {
+                            servicePrice = s.price_large;
+                        }
+                    }
+                    finalPrice += servicePrice;
+                }
+            }
+
             const appt = await prisma.appointment.create({
                 data: {
                     pet_id: pet.id,
@@ -459,6 +488,7 @@ const toolImplementations = {
                     notes: notes || null,
                     status: 'Booked',
                     groomer_id: check.groomerId,
+                    price: finalPrice,
                     tenantId: resolvedTenantId
                 }
             });
