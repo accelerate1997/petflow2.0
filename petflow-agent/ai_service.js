@@ -317,6 +317,7 @@ function minutesToTimeStr(totalMinutes) {
 
 /**
  * Implementation of the tool functions
+ */
 function getTenantIdFromParam(tenantIdOrConfig) {
     if (tenantIdOrConfig && typeof tenantIdOrConfig === 'object') {
         return tenantIdOrConfig.tenantId || 'default-tenant-id';
