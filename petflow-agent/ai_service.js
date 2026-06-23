@@ -849,7 +849,8 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         }
         const clientOpenai = new OpenAI({ apiKey: openAiKey });
 
-        const systemPrompt = await buildSystemPrompt(session.tenantId);
+        let systemPrompt = await buildSystemPrompt(session.tenantId);
+        systemPrompt += `\n\nActive Client Phone: ${phone}\n(Use this phone number whenever calling tools that require a client's or owner's phone number.)`;
 
         const chatContext = [
             { role: 'system', content: systemPrompt }
