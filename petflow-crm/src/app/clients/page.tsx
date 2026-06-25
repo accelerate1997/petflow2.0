@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react'
+import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp, ShoppingBag, Edit } from 'lucide-react'
 import AddClientModal from '@/components/AddClientModal'
+import EditClientModal from '@/components/EditClientModal'
 import AddPetModal from '@/components/AddPetModal'
 import CheckoutModal from '@/components/CheckoutModal'
 import type { Client, Pet } from '@/types'
@@ -19,12 +20,15 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showAddClient, setShowAddClient] = useState(false)
+  const [showEditClient, setShowEditClient] = useState(false)
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState<ClientWithPets | null>(null)
   const [showAddPet, setShowAddPet] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
   const [checkoutClientId, setCheckoutClientId] = useState<string | undefined>()
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [currencyCode, setCurrencyCode] = useState('INR')
+  const [currencySymbol, setCurrencySymbol] = useState('₹')
   const router = useRouter()
 
   const fetchClients = useCallback(async () => {
@@ -37,6 +41,9 @@ export default function ClientsPage() {
       setClients(data as any)
       if (settings?.currency_code) {
         setCurrencyCode(settings.currency_code)
+      }
+      if (settings?.currency_symbol) {
+        setCurrencySymbol(settings.currency_symbol)
       }
     } catch (error: any) {
       console.error('Error fetching clients:', error)
@@ -227,6 +234,16 @@ export default function ClientsPage() {
                       <div className="flex gap-2">
                         <button
                           className="btn-outline !py-1.5 !px-3 !text-[0.75rem]"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedClientForEdit(client); 
+                            setShowEditClient(true); 
+                          }}
+                        >
+                          <Edit size={13} /> Edit Parent
+                        </button>
+                        <button
+                          className="btn-outline !py-1.5 !px-3 !text-[0.75rem]"
                           onClick={(e) => { e.stopPropagation(); setSelectedClientId(client.id); setShowAddPet(true) }}
                         >
                           <Plus size={13} /> Add Pet
@@ -291,6 +308,18 @@ export default function ClientsPage() {
             fetchClients()
             router.refresh()
           }}
+        />
+      )}
+
+      {showEditClient && selectedClientForEdit && (
+        <EditClientModal
+          client={selectedClientForEdit}
+          onClose={() => { setShowEditClient(false); setSelectedClientForEdit(null) }}
+          onSuccess={() => {
+            fetchClients()
+            router.refresh()
+          }}
+          currencySymbol={currencySymbol}
         />
       )}
 

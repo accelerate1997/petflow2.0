@@ -333,6 +333,32 @@ export async function createClient(data: any) {
   return client
 }
 
+export async function updateClient(id: string, data: any) {
+  const tenantId = await getCurrentTenantId()
+  const client = await prisma.client.update({
+    where: { id, tenantId },
+    data: {
+      name: data.name,
+      whatsapp_number: data.whatsapp_number,
+      email: data.email,
+      address: data.address,
+      total_spend: data.total_spend,
+    }
+  })
+
+  // Fire outgoing webhook
+  fireWebhook('client.updated', tenantId, {
+    id: client.id,
+    name: client.name,
+    email: client.email,
+    whatsapp_number: client.whatsapp_number,
+    join_date: client.join_date,
+  })
+
+  revalidatePath('/clients')
+  return client
+}
+
 export async function deleteClient(id: string) {
   // Delete in dependency order to respect all foreign key constraints
 

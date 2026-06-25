@@ -8,6 +8,7 @@ export type WebhookEvent =
   | 'appointment.updated'
   | 'appointment.cancelled'
   | 'client.created'
+  | 'client.updated'
   | 'invoice.created'
   | 'invoice.paid'
   | 'boarding.created'
