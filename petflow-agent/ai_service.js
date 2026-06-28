@@ -790,7 +790,7 @@ const toolImplementations = {
 /**
  * Persist a message to the database.
  */
-async function saveMessage(sessionId, role, content, tool_call_id = null, name = null) {
+async function saveMessage(sessionId, role, content, tool_call_id = null, name = null, tool_calls = null) {
     try {
         const msg = await prisma.chatMessage.create({
             data: {
@@ -799,6 +799,8 @@ async function saveMessage(sessionId, role, content, tool_call_id = null, name =
                 content: typeof content === 'string' ? content : JSON.stringify(content),
                 tool_call_id,
                 name,
+                // Store the tool_calls array as JSON so history can be faithfully reconstructed
+                ...(tool_calls ? { tool_calls: JSON.stringify(tool_calls) } : {}),
             }
         });
         // Update session's last_message and updated timestamp
@@ -903,16 +905,28 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
             const m = freshMessages[i];
             const msg = { role: m.role, content: m.content };
             
+            if (m.role === 'assistant' && m.tool_calls) {
+                // Restore the saved tool_calls array so OpenAI sees the proper call context
+                try {
+                    msg.tool_calls = typeof m.tool_calls === 'string'
+                        ? JSON.parse(m.tool_calls)
+                        : m.tool_calls;
+                } catch (_) {
+                    // ignore parse errors
+                }
+            }
+
             if (m.role === 'tool') {
                 msg.tool_call_id = m.tool_call_id;
                 msg.name = m.name;
                 
+                // Fallback: if the previous assistant message still has no tool_calls, reconstruct a stub
                 const prev = history[history.length - 1];
                 if (prev && prev.role === 'assistant' && !prev.tool_calls) {
                     prev.tool_calls = [{
                         id: m.tool_call_id,
                         type: 'function',
-                        function: { name: m.name, arguments: "{}" }
+                        function: { name: m.name, arguments: '{}' }
                     }];
                 }
             }
@@ -921,7 +935,23 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         }
 
         chatContext.push(...history.slice(-25));
+
+        // Tell the AI the conversation state so it knows whether to greet or continue
+        const isNewConversation = history.length === 0;
+        if (isNewConversation) {
+            chatContext.push({
+                role: 'system',
+                content: `[CONVERSATION STATE: NEW] This is the very first message from this user. Call search_client_and_pets with phone "${phone}" before responding, then greet them appropriately.`
+            });
+        } else {
+            chatContext.push({
+                role: 'system',
+                content: `[CONVERSATION STATE: ONGOING] This conversation is already in progress. DO NOT re-greet, DO NOT re-introduce yourself, DO NOT call search_client_and_pets again. Simply continue from where the conversation left off and respond to the user's latest message.`
+            });
+        }
+
         chatContext.push({ role: 'user', content: userInput });
+
 
         // Save User Message
         const savedUserMsg = await saveMessage(session.id, 'user', userInput);
@@ -937,20 +967,22 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
             messages: chatContext,
             tools: filteredTools.length > 0 ? filteredTools : tools,
             tool_choice: "auto",
-            temperature: 0.7,
+            temperature: 0.1, // Low temperature: factual booking assistant, not creative writing
         });
 
         let assistantMessage = response.choices[0].message;
 
         // Handle Tool Calls
         if (assistantMessage.tool_calls) {
-            const savedAssistantToolCallMsg = await prisma.chatMessage.create({
-                data: {
-                    session_id: session.id,
-                    role: 'assistant',
-                    content: assistantMessage.content || '',
-                }
-            });
+            // Save the full tool_calls array so history can be faithfully reconstructed later
+            const savedAssistantToolCallMsg = await saveMessage(
+                session.id,
+                'assistant',
+                assistantMessage.content || '',
+                null,
+                null,
+                assistantMessage.tool_calls
+            );
             if (onMessageSaved && savedAssistantToolCallMsg) onMessageSaved(savedAssistantToolCallMsg);
 
             chatContext.push(assistantMessage);
@@ -980,10 +1012,11 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
                 });
             }
 
-            // Get final response from AI after tool results
+            // Get final response from AI after tool results — keep temperature low for factual accuracy
             response = await clientOpenai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: chatContext,
+                temperature: 0.1,
             });
             assistantMessage = response.choices[0].message;
         }

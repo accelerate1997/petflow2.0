@@ -260,6 +260,7 @@ model ChatMessage {
   content         String      @db.Text
   tool_call_id    String?
   name            String?     // Name of the tool called
+  tool_calls      String?     @db.Text  // JSON-serialized tool_calls array for assistant messages
   created         DateTime    @default(now())
 }
 
