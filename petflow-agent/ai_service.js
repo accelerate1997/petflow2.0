@@ -960,13 +960,18 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         // Load config and get only enabled tools
         const petroConfig = await loadConfig(session.tenantId);
         const enabledToolNames = getEnabledToolNames(petroConfig);
-        const filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
+        let filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
+
+        // CRITICAL: If the conversation is already in progress, strip search_client_and_pets to prevent re-greeting loops
+        if (!isNewConversation) {
+            filteredTools = filteredTools.filter(t => t.function.name !== 'search_client_and_pets');
+        }
 
         let response = await clientOpenai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: chatContext,
-            tools: filteredTools.length > 0 ? filteredTools : tools,
-            tool_choice: "auto",
+            tools: filteredTools.length > 0 ? filteredTools : undefined,
+            tool_choice: filteredTools.length > 0 ? "auto" : undefined,
             temperature: 0.1, // Low temperature: factual booking assistant, not creative writing
         });
 
@@ -1098,8 +1103,15 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
 
         // 3. Filter tools enabled
         const enabledToolNames = getEnabledToolNames(draftConfig);
-        const filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
-        executionLogs.push(`[Tools Gating] Enabled tools: [${enabledToolNames.join(', ')}].`);
+        let filteredTools = tools.filter(t => enabledToolNames.includes(t.function.name));
+
+        // CRITICAL: If playground session has history, strip search_client_and_pets
+        const hasHistory = messages.length > 0;
+        if (hasHistory) {
+            filteredTools = filteredTools.filter(t => t.function.name !== 'search_client_and_pets');
+        }
+
+        executionLogs.push(`[Tools Gating] Enabled tools: [${filteredTools.map(t => t.function.name).join(', ')}].`);
 
         executionLogs.push(`[OpenAI] Sending chat completion request...`);
         let response = await clientOpenai.chat.completions.create({
