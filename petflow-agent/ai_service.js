@@ -827,7 +827,7 @@ async function saveMessage(sessionId, role, content, tool_call_id = null, name =
 async function getOrCreateSession(phone) {
     let session = await prisma.chatSession.findUnique({
         where: { phone },
-        include: { messages: { orderBy: { created: 'asc' }, take: 50 } }
+        include: { messages: { orderBy: { created: 'desc' }, take: 50 } }
     });
 
     const instanceName = process.env.INSTANCE_NAME || 'PetFlow_Spa';
@@ -849,15 +849,19 @@ async function getOrCreateSession(phone) {
                 tenantId: activeTenantId,
                 last_message: 'New Session'
             },
-            include: { messages: true }
+            include: { messages: { orderBy: { created: 'desc' }, take: 50 } }
         });
     } else if (!session.tenantId) {
         // Populate tenant ID if it was null
         session = await prisma.chatSession.update({
             where: { id: session.id },
             data: { tenantId: activeTenantId },
-            include: { messages: true }
+            include: { messages: { orderBy: { created: 'desc' }, take: 50 } }
         });
+    }
+
+    if (session && session.messages) {
+        session.messages.reverse();
     }
 
     return session;
