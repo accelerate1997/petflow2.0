@@ -152,10 +152,11 @@ export default function SettingsPage() {
 
   const getVncUrl = () => {
     try {
-      if (!waConfig.evolution_api_url) return '';
-      const url = new URL(waConfig.evolution_api_url);
-      url.port = '6080';
-      return `${url.origin}/vnc.html?autoconnect=true&resize=scale`;
+      if (typeof window === 'undefined') return '';
+      const host = window.location.hostname;
+      // VNC/noVNC runs on port 6080. We use http or https depending on current site.
+      const protocol = window.location.protocol;
+      return `${protocol}//${host}:6080/vnc.html?autoconnect=true&resize=scale`;
     } catch {
       return '';
     }
