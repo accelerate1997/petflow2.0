@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     novnc \
     websockify \
     chromium \
+    openssl \
     fonts-liberation \
     libnss3 \
     libatk-bridge2.0-0 \
