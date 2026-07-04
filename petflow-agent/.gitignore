@@ -3,3 +3,6 @@ node_modules/
 *.log
 
 /generated/prisma
+
+.wwebjs_auth/
+.wwebjs_cache/

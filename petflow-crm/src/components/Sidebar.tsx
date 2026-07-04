@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, PawPrint, Users, Calendar, Settings, Sparkles, Tag, UserCog, ShoppingBag, BarChart2, Megaphone, Receipt, MessageSquare, Bot, BedDouble, LogOut } from 'lucide-react'
+import { LayoutDashboard, PawPrint, Users, Calendar, Settings, Sparkles, Tag, UserCog, ShoppingBag, BarChart2, Megaphone, Receipt, MessageSquare, Bot, BedDouble, LogOut, Truck } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 
 
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/crm',          label: 'Pet CRM',      icon: Sparkles },
   { href: '/appointments', label: 'Appointments', icon: Calendar },
   { href: '/boarding',     label: 'Boarding',     icon: BedDouble },
+  { href: '/vans',         label: 'Grooming Vans', icon: Truck },
   { href: '/services',     label: 'Services',     icon: Tag },
   { href: '/pets',         label: 'Pets',         icon: PawPrint },
   { href: '/clients',      label: 'Clients',      icon: Users },
@@ -50,6 +51,7 @@ export default function Sidebar({ settings }: { settings: any }) {
   const filteredNavItems = navItems.filter(item => {
     if (item.href === '/boarding' && !boardingEnabled) return false
     if (item.href === '/inventory' && !retailEnabled) return false
+    if (item.href === '/vans' && !(settings?.mobile_enabled ?? false)) return false
     if (isStaff && adminOnlyHrefs.includes(item.href)) return false
     return true
   })

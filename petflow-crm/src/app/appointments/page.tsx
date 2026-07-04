@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, User, CalendarClock, Camera, Receipt, FileText } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, User, CalendarClock, Camera, Receipt, FileText, Truck, MapPin } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import RescheduleModal from '@/components/RescheduleModal'
 import GroomingRecordModal from '@/components/GroomingRecordModal'
@@ -144,6 +144,21 @@ export default function AppointmentsPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Van & Location Row */}
+              {apt.van && (
+                <div className="flex items-center gap-1.5 mb-2 bg-blue-50/40 px-2 py-1.5 rounded-lg border border-blue-100/50">
+                  <Truck size={12} className="text-blue-500 flex-shrink-0" />
+                  <span className="text-[0.65rem] font-700 text-blue-700 truncate">{apt.van.name}</span>
+                  {apt.pet?.owner?.address && (
+                    <>
+                      <span className="text-blue-300 mx-0.5">•</span>
+                      <MapPin size={10} className="text-blue-400 flex-shrink-0" />
+                      <span className="text-[0.65rem] font-600 text-blue-600 truncate">{apt.pet.owner.address}</span>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Bottom Details Row */}
               <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50/50">

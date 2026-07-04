@@ -13,6 +13,7 @@ interface InvoiceTemplateProps {
     spa_email: string | null
     currency_symbol: string
     currency_code?: string | null
+    tax_label?: string | null
   } | null
 }
 
@@ -21,7 +22,7 @@ const fmt = (n: number, currencyCode = 'INR') =>
 
 const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
   ({ invoice, spaSettings }, ref) => {
-    const spa = spaSettings || { spa_name: 'PetFlow Spa', spa_address: null, spa_whatsapp: null, spa_email: null, currency_symbol: '₹', currency_code: 'INR' }
+    const spa = spaSettings || { spa_name: 'PetFlow Spa', spa_address: null, spa_whatsapp: null, spa_email: null, currency_symbol: '₹', currency_code: 'INR', tax_label: 'Tax' }
     const currCode = spa.currency_code || 'INR'
     
     // Extract info based on if it's an appointment, boarding stay, or direct sale
@@ -243,7 +244,7 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
               )}
               {invoice.tax_rate > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#64748b' }}>
-                  <span>Tax ({invoice.tax_rate}%)</span>
+                  <span>{spa.tax_label || 'Tax'} ({invoice.tax_rate}%)</span>
                   <span>{fmt(invoice.tax_amount, currCode)}</span>
                 </div>
               )}

@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
         const message = `*Vaccination Due Soon!* 💉🐾\n\nHi ${ownerName}, this is a friendly reminder from PetFlow Spa that *${petName}*'s *${vaccineName}* booster is due soon on *${dueDateFormatted}*.\n\nKeep them safe and healthy! You can schedule their next visit here: [Booking Link]`;
         
-        await sendWhatsApp(record.pet.owner.whatsapp_number, message, record.pet.tenantId);
+        await sendWhatsApp(record.pet.owner.whatsapp_number, message, record.pet.tenantId || undefined);
         sentCount++;
       }
     }

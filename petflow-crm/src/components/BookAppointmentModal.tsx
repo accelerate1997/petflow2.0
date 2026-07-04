@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Calendar, Search, Clock, Scissors, Plus, Trash2, Dog } from 'lucide-react'
-import type { Client, Pet, Service, Staff } from '@/types'
-import { getServices, getClients, createAppointment, getStaff } from '@/lib/actions'
+import { X, Calendar, Search, Clock, Scissors, Plus, Trash2, Dog, Truck } from 'lucide-react'
+import { getServices, getClients, createAppointment, getStaff, getSettings, getVans } from '@/lib/actions'
 import { getLocalDateString } from '@/lib/dateUtils'
+import type { Client, Pet, Service, Staff, Van } from '@/types'
 
 interface Props {
   onClose: () => void
@@ -50,6 +50,8 @@ export default function BookAppointmentModal({ onClose, onSuccess, currencySymbo
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedPet, setSelectedPet]       = useState<Pet | null>(null)
   const [selectedServices, setSelectedServices] = useState<Service[]>([])
+  const [mobileEnabled, setMobileEnabled]   = useState(false)
+  const [vans, setVans]                     = useState<Van[]>([])
 
   const [form, setForm] = useState({
     pet_id:           '',
@@ -59,6 +61,7 @@ export default function BookAppointmentModal({ onClose, onSuccess, currencySymbo
     notes:            '',
     payment_status:   'Pending',
     groomer_id:       '',
+    van_id:           '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
@@ -71,6 +74,12 @@ export default function BookAppointmentModal({ onClose, onSuccess, currencySymbo
       .catch(err => console.error(err))
     getStaff(true).then(d => setStaffList(d as any))
       .catch(err => console.error(err))
+    getSettings().then(s => {
+      if (s?.mobile_enabled) {
+        setMobileEnabled(true)
+        getVans().then(v => setVans(v as any)).catch(console.error)
+      }
+    }).catch(console.error)
   }, [])
 
   // Client search
@@ -136,6 +145,7 @@ export default function BookAppointmentModal({ onClose, onSuccess, currencySymbo
         status:           'Booked',
         payment_status:   form.payment_status,
         groomer_id:       form.groomer_id || null,
+        van_id:           form.van_id || null,
       })
       onSuccess()
       onClose()
@@ -358,6 +368,25 @@ export default function BookAppointmentModal({ onClose, onSuccess, currencySymbo
               </div>
             </div>
           </div>
+
+          {mobileEnabled && (
+            <div>
+              <label className="text-[0.7rem] font-800 text-gray-400 uppercase tracking-wider mb-1.5 block">Assign Grooming Van</label>
+              <div className="form-group">
+                <Truck size={14} className="text-gray-400" />
+                <select
+                  className="input-field pl-8"
+                  value={form.van_id}
+                  onChange={e => setForm({ ...form, van_id: e.target.value })}
+                >
+                  <option value="">Not Assigned (Store / In-Shop)</option>
+                  {vans.filter(v => v.status === 'Active').map(v => (
+                    <option key={v.id} value={v.id}>{v.name} {v.plate_number ? `(${v.plate_number})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

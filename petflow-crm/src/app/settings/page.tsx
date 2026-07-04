@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity } from 'lucide-react'
-import type { Settings, BusinessHours } from '@/types'
-import { getSettings, updateSettings, getWhatsAppConfig, updateWhatsAppConfig, sendTestWhatsApp, updateUserAccount } from '@/lib/actions'
+import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck } from 'lucide-react'
+import type { Settings, BusinessHours, Van } from '@/types'
+import { getSettings, updateSettings, getWhatsAppConfig, updateWhatsAppConfig, sendTestWhatsApp, updateUserAccount, getVans, createVan, updateVan, deleteVan } from '@/lib/actions'
 import { getPaymentConfig, updatePaymentConfig } from '@/lib/payment-actions'
+import { COUNTRY_CONFIGS } from '@/lib/countryConfigs'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
@@ -82,7 +83,7 @@ const CURRENCIES = [
 ]
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'whatsapp' | 'payments' | 'integrations' | 'account'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'vans' | 'whatsapp' | 'payments' | 'integrations' | 'account'>('profile')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -149,6 +150,17 @@ export default function SettingsPage() {
   const [isSendingTest, setIsSendingTest] = useState(false)
   const [webhookRegistered, setWebhookRegistered] = useState<boolean | null>(null)
 
+  const getVncUrl = () => {
+    try {
+      if (!waConfig.evolution_api_url) return '';
+      const url = new URL(waConfig.evolution_api_url);
+      url.port = '6080';
+      return `${url.origin}/vnc.html?autoconnect=true&resize=scale`;
+    } catch {
+      return '';
+    }
+  }
+
   // ─── Integrations / Outgoing Webhooks state ───────────────────────────────
   const ALL_EVENTS = [
     { key: 'appointment.created',   label: 'Appointment Created',   desc: 'New appointment booked' },
@@ -192,6 +204,59 @@ export default function SettingsPage() {
   const [payMessage, setPayMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
   const [copiedWebhook, setCopiedWebhook] = useState('')
+
+  // Grooming Vans state
+  const [vans, setVans] = useState<Van[]>([])
+  const [vansLoading, setVansLoading] = useState(false)
+  const [newVanName, setNewVanName] = useState('')
+  const [newVanPlate, setNewVanPlate] = useState('')
+  const [vansMessage, setVansMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  const loadVansData = async () => {
+    setVansLoading(true)
+    try {
+      const data = await getVans()
+      setVans(data as any)
+    } catch (err) {
+      console.error('Error loading vans:', err)
+    }
+    setVansLoading(false)
+  }
+
+  const handleAddVan = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newVanName.trim()) return
+    try {
+      await createVan({ name: newVanName, plate_number: newVanPlate })
+      setNewVanName('')
+      setNewVanPlate('')
+      setVansMessage({ type: 'success', text: 'Van added successfully! 🚚' })
+      loadVansData()
+      setTimeout(() => setVansMessage(null), 3000)
+    } catch (err: any) {
+      setVansMessage({ type: 'error', text: err.message || 'Failed to add van' })
+    }
+  }
+
+  const handleToggleVanStatus = async (id: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'Active' ? 'Maintenance' : 'Active'
+    try {
+      await updateVan(id, { status: nextStatus })
+      loadVansData()
+    } catch (err: any) {
+      alert(err.message || 'Failed to update status')
+    }
+  }
+
+  const handleDeleteVan = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this van from your fleet?')) return
+    try {
+      await deleteVan(id)
+      loadVansData()
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete van')
+    }
+  }
 
   const fetchSettingsData = async () => {
     setLoading(true)
@@ -266,6 +331,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (activeTab === 'integrations') loadWebhooks()
+    if (activeTab === 'vans') loadVansData()
   }, [activeTab])
 
   useEffect(() => {
@@ -800,6 +866,7 @@ export default function SettingsPage() {
           { id: 'profile',      label: 'Spa Profile',   icon: Globe },
           { id: 'hours',        label: 'Hours',          icon: Clock },
           { id: 'system',       label: 'System',         icon: SettingsIcon },
+          ...(settings?.mobile_enabled ? [{ id: 'vans', label: 'Grooming Vans', icon: Truck }] : []),
           { id: 'whatsapp',     label: 'WhatsApp',       icon: MessageSquare },
           { id: 'payments',     label: 'Payments',       icon: CreditCard },
           { id: 'integrations', label: 'Integrations',   icon: Zap },
@@ -1020,6 +1087,39 @@ export default function SettingsPage() {
               <h3 className="text-lg font-700 mb-1">Preferences</h3>
               <p className="text-sm text-gray-400">System-wide configurations and localization</p>
             </div>
+
+            {/* Country / Market Selector */}
+            <div className="col-span-full">
+              <label className="text-sm font-600 text-gray-700 block mb-2">Country / Market</label>
+              <select
+                className="input-field"
+                value={settings.country ?? 'IN'}
+                onChange={e => {
+                  const code = e.target.value
+                  const cfg = COUNTRY_CONFIGS[code]
+                  if (cfg) {
+                    setSettings(prev => prev ? {
+                      ...prev,
+                      country: code,
+                      currency_code: cfg.currency_code,
+                      currency_symbol: cfg.currency_symbol,
+                      tax_label: cfg.tax_label,
+                      tax_presets: cfg.tax_presets,
+                      timezone: cfg.timezone,
+                      date_format: cfg.date_format,
+                      time_format: cfg.time_format,
+                      tip_enabled: cfg.tip_enabled,
+                    } : null)
+                  }
+                }}
+              >
+                {Object.entries(COUNTRY_CONFIGS).map(([code, cfg]) => (
+                  <option key={code} value={code}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Currency */}
             <div>
               <label className="text-sm font-600 color-gray-700 block mb-2">Currency</label>
               <select
@@ -1042,14 +1142,54 @@ export default function SettingsPage() {
                 ))}
               </select>
             </div>
+
+            {/* Timezone */}
             <div>
-              <label className="text-sm font-600 color-gray-700 block mb-2">Time Zone</label>
-              <div className="input-field bg-gray-50 text-gray-400 select-none cursor-not-allowed">
-                UTC +05:30 (India Standard Time)
-              </div>
+              <label className="text-sm font-600 text-gray-700 block mb-2">Time Zone</label>
+              <select
+                className="input-field"
+                value={settings.timezone || 'Asia/Kolkata'}
+                onChange={e => setSettings({ ...settings, timezone: e.target.value })}
+              >
+                <option value="Asia/Kolkata">Asia/Kolkata — IST (UTC+5:30)</option>
+                <option value="Asia/Dubai">Asia/Dubai — GST (UTC+4)</option>
+                <option value="America/New_York">America/New_York — EST (UTC-5)</option>
+                <option value="America/Chicago">America/Chicago — CST (UTC-6)</option>
+                <option value="America/Denver">America/Denver — MST (UTC-7)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles — PST (UTC-8)</option>
+                <option value="Europe/London">Europe/London — GMT (UTC+0)</option>
+                <option value="Australia/Sydney">Australia/Sydney — AEST (UTC+10)</option>
+                <option value="Asia/Singapore">Asia/Singapore — SGT (UTC+8)</option>
+                <option value="America/Toronto">America/Toronto — EST (UTC-5)</option>
+              </select>
             </div>
 
-            {/* Business Modules Toggles */}
+            {/* Date Format */}
+            <div>
+              <label className="text-sm font-600 text-gray-700 block mb-2">Date Format</label>
+              <select
+                className="input-field"
+                value={settings.date_format || 'DD/MM/YYYY'}
+                onChange={e => setSettings({ ...settings, date_format: e.target.value })}
+              >
+                <option value="DD/MM/YYYY">DD/MM/YYYY (India / UAE)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+              </select>
+            </div>
+
+            {/* Tax Label */}
+            <div>
+              <label className="text-sm font-600 text-gray-700 block mb-2">Tax Label</label>
+              <input
+                className="input-field"
+                placeholder="e.g. GST, VAT, Sales Tax"
+                value={settings.tax_label || 'GST'}
+                onChange={e => setSettings({ ...settings, tax_label: e.target.value })}
+              />
+            </div>
+
+            {/* Business Modules */}
             <div className="col-span-full border-t border-gray-100 pt-6 mt-2">
               <h3 className="text-md font-700 mb-1" style={{ fontWeight: 700 }}>Business Modules</h3>
               <p className="text-xs text-gray-400 mb-4">Toggle features based on your pet spa business model</p>
@@ -1071,7 +1211,7 @@ export default function SettingsPage() {
 
                 <label className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer select-none">
                   <div>
-                    <p className="text-sm font-bold text-gray-800" style={{ fontWeight: 700 }}>🍖 Retail Store & Products</p>
+                    <p className="text-sm font-bold text-gray-800" style={{ fontWeight: 700 }}>🍖 Retail Store &amp; Products</p>
                     <p className="text-[11px] text-gray-400">Track product inventory, cost price vs retail price, low-stock notifications, and direct product checkouts</p>
                   </div>
                   <input
@@ -1082,6 +1222,149 @@ export default function SettingsPage() {
                     style={{ accentColor: 'var(--sage)' }}
                   />
                 </label>
+
+                <label className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer select-none">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800" style={{ fontWeight: 700 }}>💰 Tip at Checkout</p>
+                    <p className="text-[11px] text-gray-400">Enable tipping at POS checkout — standard for US &amp; Canada markets (15–20%)</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.tip_enabled ?? false}
+                    onChange={e => setSettings({ ...settings, tip_enabled: e.target.checked })}
+                    className="w-4 h-4 rounded text-sage border-gray-300 focus:ring-sage"
+                    style={{ accentColor: 'var(--sage)' }}
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer select-none">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800" style={{ fontWeight: 700 }}>🚚 Mobile Grooming Vans</p>
+                    <p className="text-[11px] text-gray-400">Enable dispatching appointments to grooming vans, fleet status management, and route assignment</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.mobile_enabled ?? false}
+                    onChange={e => setSettings({ ...settings, mobile_enabled: e.target.checked })}
+                    className="w-4 h-4 rounded text-sage border-gray-300 focus:ring-sage"
+                    style={{ accentColor: 'var(--sage)' }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'vans' && settings && (
+          <div className="flex flex-col gap-6">
+            {vansMessage && (
+              <div 
+                className={`p-4 rounded-xl flex items-center gap-3 border ${
+                  vansMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
+                }`}
+              >
+                {vansMessage.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                <p className="text-sm font-500">{vansMessage.text}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Add Van Form */}
+              <div className="lg:col-span-1 p-6 rounded-2xl border border-gray-100 bg-gray-50/50 flex flex-col gap-4">
+                <div>
+                  <h4 className="text-md font-700 mb-1" style={{ fontWeight: 700 }}>Add Grooming Van</h4>
+                  <p className="text-xs text-gray-400">Register a new vehicle in your mobile grooming fleet</p>
+                </div>
+                <form onSubmit={handleAddVan} className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase tracking-wider mb-2 block">Van Name / Identifier</label>
+                    <input
+                      type="text"
+                      className="input-field bg-white"
+                      placeholder="e.g. Van Alpha, North Van"
+                      required
+                      value={newVanName}
+                      onChange={e => setNewVanName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase tracking-wider mb-2 block">License Plate Number (Optional)</label>
+                    <input
+                      type="text"
+                      className="input-field bg-white"
+                      placeholder="e.g. DXB-12345"
+                      value={newVanPlate}
+                      onChange={e => setNewVanPlate(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="btn-sage w-full py-3 flex items-center justify-center gap-2">
+                    <Plus size={16} /> Register Van
+                  </button>
+                </form>
+              </div>
+
+              {/* Fleet List */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                <div>
+                  <h4 className="text-md font-700 mb-1" style={{ fontWeight: 700 }}>Fleet Management</h4>
+                  <p className="text-xs text-gray-400">View and manage dispatch statuses of your grooming vans</p>
+                </div>
+
+                {vansLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="animate-spin text-sage-dark" size={32} />
+                  </div>
+                ) : vans.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl bg-white">
+                    <Truck className="mx-auto text-gray-300 mb-3" size={40} />
+                    <p className="text-sm font-600 text-gray-500">No vans registered yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Register your first vehicle on the left to start dispatching appointments</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {vans.map(van => (
+                      <div key={van.id} className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-sage/10 flex items-center justify-center text-sage-dark">
+                              <Truck size={20} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-700 text-gray-800">{van.name}</p>
+                              {van.plate_number ? (
+                                <p className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-600 uppercase w-fit mt-1 tracking-wider">
+                                  {van.plate_number}
+                                </p>
+                              ) : (
+                                <p className="text-[10px] text-gray-400 mt-0.5 italic">No Plate Registered</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleToggleVanStatus(van.id, van.status)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-800 uppercase tracking-wider transition-all border ${
+                              van.status === 'Active'
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                            }`}
+                          >
+                            {van.status}
+                          </button>
+                        </div>
+
+                        <div className="flex justify-end border-t border-gray-50 pt-3 mt-1">
+                          <button
+                            onClick={() => handleDeleteVan(van.id)}
+                            className="text-xs font-700 text-red-500 hover:text-red-700 flex items-center gap-1 transition-all"
+                          >
+                            <Trash2 size={13} /> Decommission
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1569,30 +1852,30 @@ export default function SettingsPage() {
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowQrModal(false) }}
         >
-          <div className="bg-white rounded-[24px] w-full max-w-[420px] shadow-2xl overflow-hidden p-8 text-center">
+          <div className="bg-white rounded-[24px] w-full max-w-[640px] shadow-2xl overflow-hidden p-8 text-center">
             <div className="flex items-center justify-center mx-auto mb-4 w-14 h-14 rounded-[16px] bg-[#25D366]/10 border border-[#25D366]/20">
               <MessageSquare size={28} color="#25D366" />
             </div>
 
             <h2 className="text-[1.4rem] font-800 mb-1">Connect WhatsApp</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Scan the QR code below with your WhatsApp mobile app to link your account.
+              Scan the QR code in the browser window below. If prompted for a passkey, complete it directly on your screen.
             </p>
 
-            <div className="bg-gray-50 border border-gray-100 rounded-[16px] p-6 flex items-center justify-center min-h-[260px] mb-6">
-              {waQrCode ? (
-                <img src={waQrCode} alt="WhatsApp QR Code" className="w-full max-w-[220px] rounded-lg" />
+            <div className="bg-gray-50 border border-gray-100 rounded-[16px] p-2 flex items-center justify-center min-h-[360px] mb-6 overflow-hidden">
+              {getVncUrl() ? (
+                <iframe 
+                  src={getVncUrl()} 
+                  className="w-full h-[360px] rounded-lg border-0" 
+                  title="WhatsApp Connection Stream"
+                  allow="clipboard-read; clipboard-write"
+                />
               ) : (
                 <div className="text-gray-400 flex flex-col items-center gap-3">
                   <Loader2 size={36} className="animate-spin text-[#25D366]" />
-                  <span className="text-sm">Generating QR code...</span>
+                  <span className="text-sm">Initializing browser stream...</span>
                 </div>
               )}
-            </div>
-
-            <div className="flex items-center justify-center gap-2 mb-6 text-xs text-gray-500">
-              <span className={`w-2 h-2 rounded-full ${waQrCode ? 'bg-amber-400 animate-pulse' : 'bg-gray-300'}`} />
-              {waQrCode ? 'Awaiting scan...' : 'Initializing...'}
             </div>
 
             <button

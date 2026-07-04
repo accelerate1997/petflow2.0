@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       if (appt.pet?.owner?.whatsapp_number) {
         const msg = `*Appointment Reminder!* 🐾\n\nHi ${appt.pet.owner.name}, this is a friendly reminder that *${appt.pet.pet_name}* has an appointment in about 2 hours (${appt.appointment_time}). See you soon!`;
         // Pass tenantId so each spa's WhatsApp instance is used
-        await sendWhatsApp(appt.pet.owner.whatsapp_number, msg, appt.tenantId);
+        await sendWhatsApp(appt.pet.owner.whatsapp_number, msg, appt.tenantId || undefined);
         sentCount++;
       }
     }

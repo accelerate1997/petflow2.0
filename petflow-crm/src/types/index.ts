@@ -82,6 +82,7 @@ export interface Invoice {
   discount_type: 'flat' | 'percent' | string
   tax_rate: number
   tax_amount: number
+  tip_amount?: number
   total_amount: number
   payment_method: 'Cash' | 'UPI' | 'Split' | string
   cash_amount: number | null
@@ -111,6 +112,8 @@ export interface Appointment {
   updated: Date | string
   boarding_reservation_id?: string | null
   invoice?: Invoice | null
+  van_id?: string | null
+  van?: Van | null
 }
 
 export const statusStyles: Record<AppointmentStatus, { color: string; bg: string }> = {
@@ -160,6 +163,15 @@ export interface Settings {
   currency_code: string | null
   boarding_enabled?: boolean
   retail_enabled?: boolean
+  // ── Global Market / Locale ───────────────────────────────────────────────
+  country?: string | null
+  timezone?: string | null
+  date_format?: string | null
+  time_format?: string | null
+  tax_label?: string | null
+  tax_presets?: number[] | null
+  tip_enabled?: boolean | null
+  mobile_enabled?: boolean
   created: Date | string
   updated: Date | string
 }
@@ -292,3 +304,13 @@ export interface BoardingCareLog {
   logged_by: string | null
   created_at: Date | string
 }
+
+export interface Van {
+  id: string
+  name: string
+  plate_number: string | null
+  status: 'Active' | 'Maintenance' | 'Inactive' | string
+  created: Date | string
+  updated: Date | string
+}
+

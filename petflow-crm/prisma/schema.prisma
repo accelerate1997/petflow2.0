@@ -36,6 +36,7 @@ model Tenant {
   payment_links   PaymentLink[]
   payment_configs PaymentConfig[]
   webhook_endpoints WebhookEndpoint[]
+  vans            Van[]
 }
 
 model Client {
@@ -153,6 +154,8 @@ model Appointment {
   invoice          Invoice?
   boarding_reservation_id String?
   boarding_reservation    BoardingReservation? @relation(fields: [boarding_reservation_id], references: [id], onDelete: SetNull)
+  van_id           String?
+  van              Van?                 @relation(fields: [van_id], references: [id], onDelete: SetNull)
 }
 
 model Invoice {
@@ -175,6 +178,7 @@ model Invoice {
   payment_method          String                            // "Cash" | "UPI" | "Split"
   cash_amount             Float?
   upi_amount              Float?
+  tip_amount              Float                @default(0)          // Tip (US market)
   invoice_notes           String?
   status                  String               @default("Paid")    // "Paid" | "Refunded" | "Partially Refunded" | "Void"
   created                 DateTime             @default(now())
@@ -219,6 +223,15 @@ model Settings {
   currency_code   String?  @default("INR")
   boarding_enabled Boolean  @default(true)
   retail_enabled   Boolean  @default(true)
+  // ─── Global Market / Locale ───────────────────────────────────────────────
+  country         String?  @default("IN")            // ISO country code: IN, AE, US
+  timezone        String?  @default("Asia/Kolkata")  // IANA timezone
+  date_format     String?  @default("DD/MM/YYYY")    // "MM/DD/YYYY" for US
+  time_format     String?  @default("24h")           // "12h" for US
+  tax_label       String?  @default("GST")           // "VAT" for UAE, "Sales Tax" for US
+  tax_presets     Json?    @default("[0,5,12,18]")   // Available tax rate buttons
+  tip_enabled     Boolean? @default(false)           // Tipping at POS (US market)
+  mobile_enabled  Boolean  @default(false)           // Toggle for mobile van features
   created         DateTime @default(now())
   updated         DateTime @updatedAt
 }
@@ -489,4 +502,17 @@ model WebhookLog {
   duration_ms Int?            // Request round-trip time in ms
   created     DateTime        @default(now())
 }
+
+model Van {
+  id           String        @id @default(cuid())
+  name         String        // e.g. "Van 1 - Downtown", "Van 2 - North"
+  plate_number String?
+  status       String        @default("Active") // "Active" | "Maintenance" | "Inactive"
+  tenantId     String?
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  created      DateTime      @default(now())
+  updated      DateTime      @updatedAt
+}
+
 

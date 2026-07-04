@@ -16,12 +16,13 @@ interface CheckoutModalProps {
   onSuccess: () => void
 }
 
-const GST_RATES = [0, 5, 12, 18]
 
 export default function CheckoutModal({ appointment, boardingReservation, clientId: initialClientId, onClose, onSuccess }: CheckoutModalProps) {
   const [discount, setDiscount] = useState(0)
   const [discountType, setDiscountType] = useState<'flat' | 'percent'>('flat')
   const [taxRate, setTaxRate] = useState(0)
+  const [tipAmount, setTipAmount] = useState(0)
+  const [tipPreset, setTipPreset] = useState<number | 'custom' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI' | 'Split' | 'Online'>('Cash')
   const [cashAmount, setCashAmount] = useState(0)
   const [upiAmount, setUpiAmount] = useState(0)
@@ -109,7 +110,7 @@ export default function CheckoutModal({ appointment, boardingReservation, client
     : discount
   const afterDiscount = Math.max(0, subtotal - discountAmt)
   const taxAmount = afterDiscount * taxRate / 100
-  const total = afterDiscount + taxAmount
+  const total = afterDiscount + taxAmount + tipAmount
 
   // Keep split amounts in sync with total
   useEffect(() => {
@@ -174,6 +175,7 @@ export default function CheckoutModal({ appointment, boardingReservation, client
         discount_type: discountType,
         tax_rate: taxRate,
         tax_amount: taxAmount,
+        tip_amount: tipAmount,
         total_amount: total,
         payment_method: paymentMethod,
         cash_amount: cashAmount || undefined,
@@ -550,7 +552,7 @@ export default function CheckoutModal({ appointment, boardingReservation, client
                 {/* Discount Row */}
                 <div className="flex items-center gap-3 py-2 border-y border-dashed border-gray-100">
                   <div className="flex bg-gray-100 rounded-lg p-1">
-                    <button onClick={() => setDiscountType('flat')} className={`px-2 py-1 text-[10px] font-800 rounded-md transition-all ${discountType === 'flat' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400'}`}>₹</button>
+                    <button onClick={() => setDiscountType('flat')} className={`px-2 py-1 text-[10px] font-800 rounded-md transition-all ${discountType === 'flat' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400'}`}>{spaSettings?.currency_symbol || '₹'}</button>
                     <button onClick={() => setDiscountType('percent')} className={`px-2 py-1 text-[10px] font-800 rounded-md transition-all ${discountType === 'percent' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400'}`}>%</button>
                   </div>
                   <input
@@ -565,9 +567,11 @@ export default function CheckoutModal({ appointment, boardingReservation, client
 
                 {/* Tax Selector */}
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-700 text-gray-400 uppercase tracking-tighter">Tax (GST)</span>
+                  <span className="text-xs font-700 text-gray-400 uppercase tracking-tighter">
+                    {spaSettings?.tax_label || 'Tax'}
+                  </span>
                   <div className="flex gap-1">
-                    {GST_RATES.map(r => (
+                    {(spaSettings?.tax_presets ?? [0, 5, 12, 18]).map((r: number) => (
                       <button
                         key={r}
                         onClick={() => setTaxRate(r)}
@@ -578,6 +582,58 @@ export default function CheckoutModal({ appointment, boardingReservation, client
                     ))}
                   </div>
                 </div>
+
+                {/* Tip Section — only shows for US/tip-enabled markets */}
+                {spaSettings?.tip_enabled && (
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-dashed border-gray-100">
+                    <span className="text-xs font-700 text-gray-400 uppercase tracking-tighter">Tip 🤝</span>
+                    <div className="flex gap-1">
+                      {[15, 18, 20].map(pct => (
+                        <button
+                          key={pct}
+                          onClick={() => {
+                            if (tipPreset === pct) {
+                              setTipPreset(null)
+                              setTipAmount(0)
+                            } else {
+                              setTipPreset(pct)
+                              setTipAmount(Math.round(afterDiscount * pct / 100 * 100) / 100)
+                            }
+                          }}
+                          className={`px-2.5 py-1 text-[10px] font-800 rounded-md border transition-all ${
+                            tipPreset === pct ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTipPreset('custom')
+                          setTipAmount(0)
+                        }}
+                        className={`px-2.5 py-1 text-[10px] font-800 rounded-md border transition-all ${
+                          tipPreset === 'custom' ? 'bg-sage-dark border-sage-dark text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                        }`}
+                      >
+                        Custom
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {spaSettings?.tip_enabled && tipPreset === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 font-600">Tip amount:</span>
+                    <input
+                      type="number"
+                      className="flex-1 bg-transparent text-sm font-700 outline-none border-b border-dashed border-gray-200 pb-0.5"
+                      placeholder="Enter tip..."
+                      value={tipAmount || ''}
+                      onChange={e => setTipAmount(parseFloat(e.target.value) || 0)}
+                    />
+                    {tipAmount > 0 && <span className="text-amber-600 font-800 text-sm">+{fmt(tipAmount)}</span>}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t-2 border-gray-50">

@@ -526,6 +526,7 @@ export async function getAppointments(view: 'today' | 'tomorrow' | 'week' | 'all
         include: { owner: true } 
       },
       groomer: true,
+      van: true,
     },
     orderBy: [
       { appointment_date: 'asc' },
@@ -737,6 +738,7 @@ export async function updateAppointment(id: string, data: {
   after_photos?: string[];
   status?: string;
   payment_status?: string;
+  van_id?: string | null;
 }) {
   const tenantId = await getCurrentTenantId()
   const existingAppt = await prisma.appointment.findFirst({ where: { id, tenantId } });
@@ -953,6 +955,7 @@ export async function createInvoice(data: {
   discount_type: 'flat' | 'percent'
   tax_rate: number
   tax_amount: number
+  tip_amount?: number
   total_amount: number
   payment_method: string
   cash_amount?: number
@@ -1056,6 +1059,7 @@ export async function createInvoice(data: {
       discount_type: data.discount_type,
       tax_rate: data.tax_rate,
       tax_amount: data.tax_amount,
+      tip_amount: data.tip_amount ?? 0,
       total_amount: data.total_amount,
       payment_method: data.payment_method,
       cash_amount: data.cash_amount ?? null,
@@ -2499,5 +2503,46 @@ export async function updateUserAccount(userId: string, data: {
     role: updated.role,
   }
 }
+
+// ─── Vans (Mobile Fleet) ──────────────────────────────────────────────────────
+
+export async function getVans() {
+  noStore()
+  const tenantId = await getCurrentTenantId()
+  return await prisma.van.findMany({
+    where: { tenantId },
+    orderBy: { name: 'asc' }
+  })
+}
+
+export async function createVan(data: { name: string; plate_number?: string; status?: string }) {
+  const tenantId = await getCurrentTenantId()
+  const van = await prisma.van.create({
+    data: {
+      ...data,
+      tenantId
+    }
+  })
+  revalidatePath('/settings')
+  return van
+}
+
+export async function updateVan(id: string, data: Partial<{ name: string; plate_number: string; status: string }>) {
+  const van = await prisma.van.update({
+    where: { id },
+    data
+  })
+  revalidatePath('/settings')
+  return van
+}
+
+export async function deleteVan(id: string) {
+  const van = await prisma.van.delete({
+    where: { id }
+  })
+  revalidatePath('/settings')
+  return van
+}
+
 
 

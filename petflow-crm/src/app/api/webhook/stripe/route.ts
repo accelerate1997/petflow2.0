@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
-    const stripePaymentIntentId = session.payment_intent
+    const stripePaymentIntentId = typeof session.payment_intent === 'string' 
+      ? session.payment_intent 
+      : (session.payment_intent && 'id' in session.payment_intent ? session.payment_intent.id : null)
 
     // Update PaymentLink record
     await prisma.paymentLink.updateMany({
