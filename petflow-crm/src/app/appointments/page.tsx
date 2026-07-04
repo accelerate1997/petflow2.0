@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, User, CalendarClock, Camera, Receipt, FileText, Truck, MapPin } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle, User, CalendarClock, Camera, Receipt, FileText, Truck, MapPin, Trash2 } from 'lucide-react'
 import BookAppointmentModal from '@/components/BookAppointmentModal'
 import RescheduleModal from '@/components/RescheduleModal'
 import GroomingRecordModal from '@/components/GroomingRecordModal'
 import CheckoutModal from '@/components/CheckoutModal'
 import type { Appointment, AppointmentStatus } from '@/types'
-import { getAppointments, updateAppointmentStatus, updatePaymentStatus, getInvoice, getSettings } from '@/lib/actions'
+import { getAppointments, updateAppointmentStatus, updatePaymentStatus, getInvoice, getSettings, deleteAppointment } from '@/lib/actions'
 import { useRouter } from 'next/navigation'
 import { getLocalDateString } from '@/lib/dateUtils'
 
@@ -55,6 +55,20 @@ export default function AppointmentsPage() {
       router.refresh()
     } catch (error: any) {
       console.error('Error updating status:', error)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to permanently delete this appointment? This will also delete any associated invoice.')) {
+      return
+    }
+    try {
+      await deleteAppointment(id)
+      fetchAppointments()
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error deleting appointment:', error)
+      alert(error.message || 'Failed to delete appointment.')
     }
   }
 
@@ -250,6 +264,14 @@ export default function AppointmentsPage() {
                       title="Reschedule"
                     >
                       <CalendarClock size={14} />
+                    </button>
+                    {/* Delete button — always visible */}
+                    <button
+                      onClick={() => handleDelete(apt.id)}
+                      className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all border border-red-100"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

@@ -852,6 +852,47 @@ export async function updatePaymentStatus(id: string, payment_status: string) {
   return updated
 }
 
+export async function deleteAppointment(id: string) {
+  const tenantId = await getCurrentTenantId()
+  
+  // Find appointment and its associated invoice
+  const appt = await prisma.appointment.findFirst({
+    where: { id, tenantId },
+    include: { invoice: true }
+  })
+  
+  if (!appt) {
+    throw new Error('Appointment not found')
+  }
+
+  // If there's an associated invoice, clean up its dependent records first
+  if (appt.invoice) {
+    const invoiceId = appt.invoice.id
+    await prisma.$transaction([
+      prisma.paymentLink.deleteMany({
+        where: { invoice_id: invoiceId }
+      }),
+      prisma.sale.deleteMany({
+        where: { invoice_id: invoiceId }
+      }),
+      prisma.invoice.delete({
+        where: { id: invoiceId }
+      }),
+      prisma.appointment.delete({
+        where: { id }
+      })
+    ])
+  } else {
+    await prisma.appointment.delete({
+      where: { id }
+    })
+  }
+
+  revalidatePath('/appointments')
+  revalidatePath('/crm')
+  revalidatePath('/dashboard')
+}
+
 // ─── Settings & Config ────────────────────────────────────────────────────────
 
 export async function getSettings() {
