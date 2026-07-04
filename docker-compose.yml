@@ -18,11 +18,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3002:3002"
-      - "6080:6080"
     environment:
       # Add necessary backend environment variables here (or use .env file in petflow-agent)
       - PORT=3002
-      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-      - DISPLAY=:99
     restart: unless-stopped

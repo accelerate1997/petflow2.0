@@ -150,18 +150,6 @@ export default function SettingsPage() {
   const [isSendingTest, setIsSendingTest] = useState(false)
   const [webhookRegistered, setWebhookRegistered] = useState<boolean | null>(null)
 
-  const getVncUrl = () => {
-    try {
-      if (typeof window === 'undefined') return '';
-      const host = window.location.hostname;
-      // VNC/noVNC runs on port 6080. We use http or https depending on current site.
-      const protocol = window.location.protocol;
-      return `${protocol}//${host}:6080/vnc.html?autoconnect=true&resize=scale`;
-    } catch {
-      return '';
-    }
-  }
-
   // ─── Integrations / Outgoing Webhooks state ───────────────────────────────
   const ALL_EVENTS = [
     { key: 'appointment.created',   label: 'Appointment Created',   desc: 'New appointment booked' },
@@ -1853,30 +1841,30 @@ export default function SettingsPage() {
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowQrModal(false) }}
         >
-          <div className="bg-white rounded-[24px] w-full max-w-[640px] shadow-2xl overflow-hidden p-8 text-center">
+          <div className="bg-white rounded-[24px] w-full max-w-[420px] shadow-2xl overflow-hidden p-8 text-center">
             <div className="flex items-center justify-center mx-auto mb-4 w-14 h-14 rounded-[16px] bg-[#25D366]/10 border border-[#25D366]/20">
               <MessageSquare size={28} color="#25D366" />
             </div>
 
             <h2 className="text-[1.4rem] font-800 mb-1">Connect WhatsApp</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Scan the QR code in the browser window below. If prompted for a passkey, complete it directly on your screen.
+              Scan the QR code below with your WhatsApp mobile app to link your account.
             </p>
 
-            <div className="bg-gray-50 border border-gray-100 rounded-[16px] p-2 flex items-center justify-center min-h-[360px] mb-6 overflow-hidden">
-              {getVncUrl() ? (
-                <iframe 
-                  src={getVncUrl()} 
-                  className="w-full h-[360px] rounded-lg border-0" 
-                  title="WhatsApp Connection Stream"
-                  allow="clipboard-read; clipboard-write"
-                />
+            <div className="bg-gray-50 border border-gray-100 rounded-[16px] p-6 flex items-center justify-center min-h-[260px] mb-6">
+              {waQrCode ? (
+                <img src={waQrCode} alt="WhatsApp QR Code" className="w-full max-w-[220px] rounded-lg" />
               ) : (
                 <div className="text-gray-400 flex flex-col items-center gap-3">
                   <Loader2 size={36} className="animate-spin text-[#25D366]" />
-                  <span className="text-sm">Initializing browser stream...</span>
+                  <span className="text-sm">Generating QR code...</span>
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center justify-center gap-2 mb-6 text-xs text-gray-500">
+              <span className={`w-2 h-2 rounded-full ${waQrCode ? 'bg-amber-400 animate-pulse' : 'bg-gray-300'}`} />
+              {waQrCode ? 'Awaiting scan...' : 'Initializing...'}
             </div>
 
             <button
