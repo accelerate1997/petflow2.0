@@ -175,8 +175,8 @@ export default function AppointmentsPage() {
               )}
 
               {/* Bottom Details Row */}
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50/50">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-gray-50/50">
+                <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
                   <div className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 border border-gray-100">
                     <User size={8} className="text-gray-400" />
                   </div>
@@ -208,7 +208,7 @@ export default function AppointmentsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto flex-shrink-0 border-t border-gray-100 sm:border-t-0 pt-2 sm:pt-0 mt-1 sm:mt-0">
                   <div className="text-right mr-1">
                     <p className="font-800 text-[0.85rem] text-gray-800 tracking-tighter leading-none">{formatCurrency(apt.price || 0)}</p>
                   </div>
