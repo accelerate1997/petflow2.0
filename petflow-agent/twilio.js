@@ -42,7 +42,12 @@ async function sendMessage(remoteJid, text) {
         let formattedTo = cleanTo;
         let formattedFrom = fromNumber;
 
-        if (formattedFrom.startsWith('whatsapp:')) {
+        const isWhatsApp = remoteJid.startsWith('whatsapp:') || fromNumber.startsWith('whatsapp:');
+
+        if (isWhatsApp) {
+            if (!formattedFrom.startsWith('whatsapp:')) {
+                formattedFrom = formattedFrom.startsWith('+') ? `whatsapp:${formattedFrom}` : `whatsapp:+${formattedFrom}`;
+            }
             if (!formattedTo.startsWith('whatsapp:')) {
                 formattedTo = `whatsapp:+${formattedTo}`;
             }
@@ -127,7 +132,12 @@ async function sendMedia(remoteJid, mediaUrl, caption) {
         let formattedTo = cleanTo;
         let formattedFrom = fromNumber;
 
-        if (formattedFrom.startsWith('whatsapp:')) {
+        const isWhatsApp = remoteJid.startsWith('whatsapp:') || fromNumber.startsWith('whatsapp:');
+
+        if (isWhatsApp) {
+            if (!formattedFrom.startsWith('whatsapp:')) {
+                formattedFrom = formattedFrom.startsWith('+') ? `whatsapp:${formattedFrom}` : `whatsapp:+${formattedFrom}`;
+            }
             if (!formattedTo.startsWith('whatsapp:')) {
                 formattedTo = `whatsapp:+${formattedTo}`;
             }

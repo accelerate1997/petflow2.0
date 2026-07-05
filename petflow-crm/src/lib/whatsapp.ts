@@ -96,17 +96,11 @@ export async function sendWhatsApp(number: string, text: string, tenantId?: stri
   let formattedTo = cleanNumber;
   let formattedFrom = fromNumber;
 
-  if (formattedFrom.startsWith('whatsapp:')) {
-    if (!formattedTo.startsWith('whatsapp:')) {
-      formattedTo = `whatsapp:+${formattedTo}`;
-    }
-  } else {
-    if (!formattedTo.startsWith('+')) {
-      formattedTo = `+${formattedTo}`;
-    }
-    if (!formattedFrom.startsWith('+')) {
-      formattedFrom = `+${formattedFrom}`;
-    }
+  if (!formattedFrom.startsWith('whatsapp:')) {
+    formattedFrom = formattedFrom.startsWith('+') ? `whatsapp:${formattedFrom}` : `whatsapp:+${formattedFrom}`;
+  }
+  if (!formattedTo.startsWith('whatsapp:')) {
+    formattedTo = `whatsapp:+${formattedTo}`;
   }
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -156,17 +150,11 @@ export async function sendWhatsAppMedia(number: string, media: string, caption?:
   let formattedTo = cleanNumber;
   let formattedFrom = fromNumber;
 
-  if (formattedFrom.startsWith('whatsapp:')) {
-    if (!formattedTo.startsWith('whatsapp:')) {
-      formattedTo = `whatsapp:+${formattedTo}`;
-    }
-  } else {
-    if (!formattedTo.startsWith('+')) {
-      formattedTo = `+${formattedTo}`;
-    }
-    if (!formattedFrom.startsWith('+')) {
-      formattedFrom = `+${formattedFrom}`;
-    }
+  if (!formattedFrom.startsWith('whatsapp:')) {
+    formattedFrom = formattedFrom.startsWith('+') ? `whatsapp:${formattedFrom}` : `whatsapp:+${formattedFrom}`;
+  }
+  if (!formattedTo.startsWith('whatsapp:')) {
+    formattedTo = `whatsapp:+${formattedTo}`;
   }
 
   let mediaUrl = media;
