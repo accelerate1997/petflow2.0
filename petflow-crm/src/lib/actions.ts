@@ -928,6 +928,9 @@ export async function getWhatsAppConfig() {
     booking_link: '',
     spa_name: '',
     system_prompt: '',
+    twilio_account_sid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilio_auth_token: process.env.TWILIO_AUTH_TOKEN || '',
+    twilio_phone_number: process.env.TWILIO_PHONE_NUMBER || '',
   }
 
   if (config) {
@@ -939,6 +942,9 @@ export async function getWhatsAppConfig() {
       instance_name: config.instance_name || defaults.instance_name,
       openai_api_key: decrypt(config.openai_api_key) || defaults.openai_api_key,
       agent_public_url: config.agent_public_url || defaults.agent_public_url,
+      twilio_account_sid: config.twilio_account_sid || defaults.twilio_account_sid,
+      twilio_auth_token: config.twilio_auth_token ? decrypt(config.twilio_auth_token) : defaults.twilio_auth_token,
+      twilio_phone_number: config.twilio_phone_number || defaults.twilio_phone_number,
     }
   }
 
@@ -950,8 +956,9 @@ export async function updateWhatsAppConfig(id: string | null, data: any) {
   
   const encryptedData = {
     ...data,
-    evolution_api_key: encrypt(data.evolution_api_key),
-    openai_api_key: encrypt(data.openai_api_key),
+    evolution_api_key: data.evolution_api_key ? encrypt(data.evolution_api_key) : null,
+    openai_api_key: data.openai_api_key ? encrypt(data.openai_api_key) : null,
+    twilio_auth_token: data.twilio_auth_token ? encrypt(data.twilio_auth_token) : null,
   }
 
   if (id) {

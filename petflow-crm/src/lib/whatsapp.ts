@@ -1,6 +1,8 @@
 import { prisma } from './prisma';
 import { getCurrentTenantId } from './session-utils';
 import { decrypt } from './encryption';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Fetches the WhatsApp config scoped to the current tenant.
@@ -32,6 +34,9 @@ async function getWhatsAppConfig(tenantId?: string) {
     evolution_api_url: process.env.EVOLUTION_API_URL || process.env.Evolution_api_url || '',
     evolution_api_key: process.env.EVOLUTION_API_KEY || process.env.Evolution_api_key || '',
     instance_name: defaultInstance,
+    twilio_account_sid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilio_auth_token: process.env.TWILIO_AUTH_TOKEN || '',
+    twilio_phone_number: process.env.TWILIO_PHONE_NUMBER || '',
   };
 
   if (config) {
@@ -39,6 +44,9 @@ async function getWhatsAppConfig(tenantId?: string) {
       evolution_api_url: config.evolution_api_url || defaults.evolution_api_url,
       evolution_api_key: decrypt(config.evolution_api_key) || defaults.evolution_api_key,
       instance_name: config.instance_name || defaults.instance_name,
+      twilio_account_sid: config.twilio_account_sid || defaults.twilio_account_sid,
+      twilio_auth_token: config.twilio_auth_token ? decrypt(config.twilio_auth_token) : defaults.twilio_auth_token,
+      twilio_phone_number: config.twilio_phone_number || defaults.twilio_phone_number,
     };
   }
 
@@ -46,58 +54,88 @@ async function getWhatsAppConfig(tenantId?: string) {
 }
 
 /**
- * Formats a phone number for Evolution API:
- * - Strips non-digits
- * - Removes leading zero
- * - Auto-prefixes 10-digit Indian numbers with "91"
+ * Saves a base64 string image to the local public/uploads directory.
+ * Returns the absolute public URL.
  */
-function formatPhoneNumber(number: string): string {
-  let formatted = number.replace(/\D/g, '');
-  if (formatted.startsWith('0')) {
-    formatted = formatted.substring(1);
+function saveBase64Image(base64Data: string): string {
+  const match = base64Data.match(/^data:([^;]+);base64,/);
+  if (!match) {
+    throw new Error('Invalid base64 image data');
   }
-  if (formatted.length === 10) {
-    formatted = '91' + formatted;
+  const mimetype = match[1];
+  const ext = mimetype.split('/')[1] || 'jpeg';
+  const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+  const buffer = Buffer.from(cleanBase64, 'base64');
+  
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
   }
-  return formatted;
+  
+  const filename = `media-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+  const filePath = path.join(uploadsDir, filename);
+  fs.writeFileSync(filePath, buffer);
+  
+  const host = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  return `${host}/uploads/${filename}`;
 }
 
 export async function sendWhatsApp(number: string, text: string, tenantId?: string) {
   const config = await getWhatsAppConfig(tenantId);
 
-  const baseUrl = config.evolution_api_url;
-  const apiKey = config.evolution_api_key;
-  const instance = config.instance_name;
+  const accountSid = config.twilio_account_sid;
+  const authToken = config.twilio_auth_token;
+  const fromNumber = config.twilio_phone_number;
 
-  if (!baseUrl || !apiKey || !instance) {
-    console.warn('WhatsApp: Missing configuration (URL, API Key, or Instance). Skipping message.');
+  if (!accountSid || !authToken || !fromNumber) {
+    console.warn('Twilio: Missing configuration (Account SID, Auth Token, or Phone Number). Skipping message.');
     return null;
   }
 
-  const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanUrl}/message/sendText/${instance}`;
-  const formattedNumber = formatPhoneNumber(number);
+  const cleanNumber = number.replace(/\D/g, '');
+  let formattedTo = cleanNumber;
+  let formattedFrom = fromNumber;
+
+  if (formattedFrom.startsWith('whatsapp:')) {
+    if (!formattedTo.startsWith('whatsapp:')) {
+      formattedTo = `whatsapp:+${formattedTo}`;
+    }
+  } else {
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = `+${formattedTo}`;
+    }
+    if (!formattedFrom.startsWith('+')) {
+      formattedFrom = `+${formattedFrom}`;
+    }
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
 
   try {
+    const params = new URLSearchParams();
+    params.append('To', formattedTo);
+    params.append('From', formattedFrom);
+    params.append('Body', text);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'apikey': apiKey,
-        'Content-Type': 'application/json'
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        number: formattedNumber,
-        text,
-        delay: 1200,
-        linkPreview: false
-      })
+      body: params.toString(),
     });
 
     const result = await response.json();
-    console.log(`WhatsApp [${instance}] → ${formattedNumber}:`, result?.key?.id || result);
+    if (!response.ok) {
+      console.error('Twilio Send Error:', result);
+      return null;
+    }
+    console.log(`Twilio Message Sent to ${formattedTo} [SID: ${result.sid}]`);
     return result;
   } catch (error) {
-    console.error('WhatsApp Error:', error);
+    console.error('Twilio Send Exception:', error);
     return null;
   }
 }
@@ -105,53 +143,73 @@ export async function sendWhatsApp(number: string, text: string, tenantId?: stri
 export async function sendWhatsAppMedia(number: string, media: string, caption?: string, tenantId?: string) {
   const config = await getWhatsAppConfig(tenantId);
 
-  const baseUrl = config.evolution_api_url;
-  const apiKey = config.evolution_api_key;
-  const instance = config.instance_name;
+  const accountSid = config.twilio_account_sid;
+  const authToken = config.twilio_auth_token;
+  const fromNumber = config.twilio_phone_number;
 
-  if (!baseUrl || !apiKey || !instance) {
-    console.warn('WhatsApp: Missing configuration (URL, API Key, or Instance). Skipping media message.');
+  if (!accountSid || !authToken || !fromNumber) {
+    console.warn('Twilio: Missing configuration for media. Skipping.');
     return null;
   }
 
-  const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanUrl}/message/sendMedia/${instance}`;
-  const formattedNumber = formatPhoneNumber(number);
+  const cleanNumber = number.replace(/\D/g, '');
+  let formattedTo = cleanNumber;
+  let formattedFrom = fromNumber;
+
+  if (formattedFrom.startsWith('whatsapp:')) {
+    if (!formattedTo.startsWith('whatsapp:')) {
+      formattedTo = `whatsapp:+${formattedTo}`;
+    }
+  } else {
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = `+${formattedTo}`;
+    }
+    if (!formattedFrom.startsWith('+')) {
+      formattedFrom = `+${formattedFrom}`;
+    }
+  }
+
+  let mediaUrl = media;
+  if (media.startsWith('data:')) {
+    try {
+      mediaUrl = saveBase64Image(media);
+    } catch (e) {
+      console.error('Failed to save base64 image:', e);
+      return null;
+    }
+  } else if (media.startsWith('/')) {
+    const host = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    mediaUrl = `${host}${media}`;
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
 
   try {
-    const payload: any = {
-      number: formattedNumber,
-      mediatype: 'image',
-      media: media,
-      caption: caption || '',
-      delay: 1200
-    };
-
-    if (media.startsWith('data:')) {
-      const match = media.match(/^data:([^;]+);base64,/);
-      if (match) {
-        payload.mimetype = match[1];
-        const ext = payload.mimetype.split('/')[1] || 'jpeg';
-        payload.fileName = `image.${ext}`;
-        // Strip data URI prefix for Evolution API
-        payload.media = media.replace(/^data:[^;]+;base64,/, '');
-      }
-    }
+    const params = new URLSearchParams();
+    params.append('To', formattedTo);
+    params.append('From', formattedFrom);
+    params.append('Body', caption || '');
+    params.append('MediaUrl', mediaUrl);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'apikey': apiKey,
-        'Content-Type': 'application/json'
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify(payload)
+      body: params.toString(),
     });
 
     const result = await response.json();
-    console.log(`WhatsApp Media [${instance}] → ${formattedNumber}:`, result?.key?.id || result);
+    if (!response.ok) {
+      console.error('Twilio Send Media Error:', result);
+      return null;
+    }
+    console.log(`Twilio Media Sent to ${formattedTo} [SID: ${result.sid}]`);
     return result;
   } catch (error) {
-    console.error('WhatsApp Media Error:', error);
+    console.error('Twilio Send Media Exception:', error);
     return null;
   }
 }

@@ -248,6 +248,9 @@ model WhatsAppConfig {
   booking_link      String?
   spa_name          String?
   system_prompt     String?
+  twilio_account_sid  String?
+  twilio_auth_token   String?
+  twilio_phone_number String?
   created           DateTime @default(now())
   updated           DateTime @updatedAt
 }

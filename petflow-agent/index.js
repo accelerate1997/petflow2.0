@@ -5,13 +5,14 @@ const http    = require('http');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const { processMessage, clearSession, getActiveSessions, getSessionInfo } = require('./ai_service');
-const { sendMessage } = require('./evolution');
+const { sendMessage } = require('./twilio');
 const { initAutomation } = require('./automation_service');
 const rateLimit = require('express-rate-limit');
 
 const app  = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ─── Rate Limiters Configuration ──────────────────────────────────────────────
 const webhookLimiter = rateLimit({
@@ -167,108 +168,130 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
     }
 
     try {
-        const { event, data } = req.body;
-        console.log(`\n🔥 WEBHOOK: ${event}`);
+        let text, phone, remoteJid, msgId;
 
-        if (event !== 'messages.upsert') {
-            return res.sendStatus(200);
-        }
+        const isTwilio = !!(req.body.From || req.body.AccountSid);
 
-        const msg = Array.isArray(data) ? data[0] : data;
-        const rawTs = msg?.messageTimestamp;
-        if (rawTs) {
-            const ageSeconds = Math.floor(Date.now() / 1000) - rawTs;
-            if (ageSeconds > 60 && ageSeconds < 3600) {
-                console.log(`[IGNORE] Old message (${ageSeconds}s old). Skipping.`);
+        if (isTwilio) {
+            msgId = req.body.MessageSid;
+            const from = req.body.From || '';
+            phone = from.replace('whatsapp:', '').replace(/\D/g, '');
+            remoteJid = from;
+            text = req.body.Body;
+
+            console.log(`\n🔥 TWILIO WEBHOOK: Incoming from ${phone}`);
+        } else {
+            const { event, data } = req.body;
+            console.log(`\n🔥 EVOLUTION WEBHOOK: ${event}`);
+
+            if (event !== 'messages.upsert') {
                 return res.sendStatus(200);
             }
+
+            const msg = Array.isArray(data) ? data[0] : data;
+            const rawTs = msg?.messageTimestamp;
+            if (rawTs) {
+                const ageSeconds = Math.floor(Date.now() / 1000) - rawTs;
+                if (ageSeconds > 60 && ageSeconds < 3600) {
+                    console.log(`[IGNORE] Old message (${ageSeconds}s old). Skipping.`);
+                    return res.sendStatus(200);
+                }
+            }
+
+            const key       = msg?.key;
+            msgId     = key?.id;
+            remoteJid = key?.remoteJid;
+            const fromMe    = key?.fromMe;
+            const message   = msg?.message;
+
+            if (msgId && isDuplicate(msgId)) {
+                console.log(`[IGNORE] Duplicate msg: ${msgId}`);
+                return res.sendStatus(200);
+            }
+
+            if (!message || !remoteJid) return res.sendStatus(200);
+
+            const cleanPhone = remoteJid.split('@')[0];
+
+            // Outgoing message (sent from CRM or phone app)
+            if (fromMe) {
+                const session = await prisma.chatSession.findUnique({
+                    where: { phone: cleanPhone }
+                });
+                if (session) {
+                    const textContent =
+                        message.conversation ||
+                        message.extendedTextMessage?.text ||
+                        message.imageMessage?.caption ||
+                        message.videoMessage?.caption;
+
+                    if (textContent) {
+                        // Check if already in DB (to prevent double-saving CRM replies)
+                        const existing = await prisma.chatMessage.findFirst({
+                            where: {
+                                session_id: session.id,
+                                role: 'assistant',
+                                content: textContent,
+                                created: { gte: new Date(Date.now() - 20000) }
+                            }
+                        });
+
+                        let msgToBroadcast;
+                        if (!existing) {
+                            msgToBroadcast = await prisma.chatMessage.create({
+                                data: {
+                                    session_id: session.id,
+                                    role: 'assistant',
+                                    content: textContent
+                                }
+                            });
+                            await prisma.chatSession.update({
+                                where: { id: session.id },
+                                data: {
+                                    last_message: textContent.slice(0, 100),
+                                    updated: new Date()
+                                }
+                            });
+                        } else {
+                            msgToBroadcast = existing;
+                        }
+
+                        // Broadcast via sockets to update CRM screens
+                        io.to(session.id).emit('new_message', msgToBroadcast);
+                        io.emit('session_updated', {
+                            sessionId: session.id,
+                            lastMessage: textContent.slice(0, 100)
+                        });
+                    }
+                }
+                return res.sendStatus(200);
+            }
+
+            if (remoteJid.includes('@g.us')) {
+                console.log('[IGNORE] Group message — skipping.');
+                return res.sendStatus(200);
+            }
+
+            text =
+                message.conversation ||
+                message.extendedTextMessage?.text ||
+                message.imageMessage?.caption ||
+                message.videoMessage?.caption;
+            
+            phone = cleanPhone;
         }
 
-        res.sendStatus(200);
-
-        const key       = msg?.key;
-        const msgId     = key?.id;
-        const remoteJid = key?.remoteJid;
-        const fromMe    = key?.fromMe;
-        const message   = msg?.message;
-
-        if (msgId && isDuplicate(msgId)) {
+        if (msgId && !isTwilio && isDuplicate(msgId)) {
             console.log(`[IGNORE] Duplicate msg: ${msgId}`);
             return;
         }
 
-        if (!message || !remoteJid) return;
-
-        const cleanPhone = remoteJid.split('@')[0];
-
-        // Outgoing message (sent from CRM or phone app)
-        if (fromMe) {
-            const session = await prisma.chatSession.findUnique({
-                where: { phone: cleanPhone }
-            });
-            if (session) {
-                const text =
-                    message.conversation ||
-                    message.extendedTextMessage?.text ||
-                    message.imageMessage?.caption ||
-                    message.videoMessage?.caption;
-
-                if (text) {
-                    // Check if already in DB (to prevent double-saving CRM replies)
-                    const existing = await prisma.chatMessage.findFirst({
-                        where: {
-                            session_id: session.id,
-                            role: 'assistant',
-                            content: text,
-                            created: { gte: new Date(Date.now() - 20000) }
-                        }
-                    });
-
-                    let msgToBroadcast;
-                    if (!existing) {
-                        msgToBroadcast = await prisma.chatMessage.create({
-                            data: {
-                                session_id: session.id,
-                                role: 'assistant',
-                                content: text
-                            }
-                        });
-                        await prisma.chatSession.update({
-                            where: { id: session.id },
-                            data: {
-                                last_message: text.slice(0, 100),
-                                updated: new Date()
-                            }
-                        });
-                    } else {
-                        msgToBroadcast = existing;
-                    }
-
-                    // Broadcast via sockets to update CRM screens
-                    io.to(session.id).emit('new_message', msgToBroadcast);
-                    io.emit('session_updated', {
-                        sessionId: session.id,
-                        lastMessage: text.slice(0, 100)
-                    });
-                }
-            }
-            return;
+        if (!text || !phone || !remoteJid) {
+            return res.sendStatus(200);
         }
 
-        if (remoteJid.includes('@g.us')) {
-            console.log('[IGNORE] Group message — skipping.');
-            return;
-        }
+        res.sendStatus(200);
 
-        const text =
-            message.conversation ||
-            message.extendedTextMessage?.text ||
-            message.imageMessage?.caption ||
-            message.videoMessage?.caption;
-
-        if (!text) return;
-
-        const phone = cleanPhone;
         if (checkBotLoop(phone)) {
             console.warn(`⚠️ [SAFETY TRIGGER] Bot loop detected for phone ${phone}. Suppressing AI response.`);
             return;
@@ -297,13 +320,14 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
         });
         if (reply) {
             console.log(`💬 Luna → ${phone}: ${reply.substring(0, 80)}...`);
-            await sendMessage(remoteJid, reply, INSTANCE_NAME);
+            await sendMessage(remoteJid, reply);
         } else {
             console.log(`👤 [MANUAL MODE] Saved incoming message for ${phone}. AI response skipped.`);
         }
 
     } catch (error) {
         console.error('Webhook error:', error);
+        res.sendStatus(500);
     }
 });
 

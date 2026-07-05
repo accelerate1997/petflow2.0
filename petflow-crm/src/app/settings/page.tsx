@@ -138,6 +138,9 @@ export default function SettingsPage() {
     booking_link: '',
     spa_name: '',
     system_prompt: '',
+    twilio_account_sid: '',
+    twilio_auth_token: '',
+    twilio_phone_number: '',
   })
   const [waConnected, setWaConnected] = useState(false)
   const [waStatus, setWaStatus] = useState<'disconnected' | 'connecting' | 'awaiting_scan' | 'connected'>('disconnected')
@@ -302,9 +305,16 @@ export default function SettingsPage() {
           booking_link: data.booking_link || '',
           spa_name: data.spa_name || '',
           system_prompt: data.system_prompt || '',
+          twilio_account_sid: data.twilio_account_sid || '',
+          twilio_auth_token: data.twilio_auth_token || '',
+          twilio_phone_number: data.twilio_phone_number || '',
         })
-        if (data.evolution_api_url && data.evolution_api_key && data.instance_name) {
-          checkWhatsAppStatus(data.evolution_api_url, data.evolution_api_key, data.instance_name)
+        if (data.twilio_account_sid && data.twilio_auth_token && data.twilio_phone_number) {
+          setWaConnected(true)
+          setWaStatus('connected')
+        } else {
+          setWaConnected(false)
+          setWaStatus('disconnected')
         }
       }
     } catch (error: any) {
@@ -1409,60 +1419,43 @@ export default function SettingsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
                       <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
-                        WhatsApp Business
+                        Twilio WhatsApp / SMS
                       </h3>
                       {waConnected && <CheckCircle2 size={18} color="#25D366" />}
-                      {/* Webhook status badge */}
-                      {waConnected && webhookRegistered === true && (
-                        <span style={{
-                          fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px',
-                          borderRadius: 999, background: 'rgba(37,211,102,0.12)',
-                          color: '#16a34a', border: '1px solid rgba(37,211,102,0.25)',
-                          letterSpacing: '0.03em'
-                        }}>WEBHOOK ✓</span>
-                      )}
-                      {waConnected && webhookRegistered === false && (
-                        <span style={{
-                          fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px',
-                          borderRadius: 999, background: 'rgba(245,158,11,0.1)',
-                          color: '#b45309', border: '1px solid rgba(245,158,11,0.25)',
-                          letterSpacing: '0.03em'
-                        }}>WEBHOOK ⚠</span>
-                      )}
                     </div>
                     <p className="text-sm text-gray-500 mt-1" style={{ lineHeight: 1.6 }}>
-                      Connect your WhatsApp via Evolution API to power Petro — your AI grooming assistant that auto-responds to clients 24/7.
+                      Connect Twilio to power Petro — your AI grooming assistant that auto-responds to clients 24/7 over SMS or WhatsApp.
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                   <div>
-                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Evolution API URL</label>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Twilio Account SID</label>
                     <input
-                      className="input-field text-sm"
-                      placeholder="https://your-evolution-api.com"
-                      value={waConfig.evolution_api_url}
-                      onChange={e => setWaConfig({ ...waConfig, evolution_api_url: e.target.value })}
+                      className="input-field text-sm font-mono"
+                      placeholder="AC..."
+                      value={waConfig.twilio_account_sid}
+                      onChange={e => setWaConfig({ ...waConfig, twilio_account_sid: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Evolution API Key</label>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Twilio Auth Token</label>
                     <input
                       type="password"
                       className="input-field text-sm"
-                      placeholder="Enter Evolution API Key"
-                      value={waConfig.evolution_api_key}
-                      onChange={e => setWaConfig({ ...waConfig, evolution_api_key: e.target.value })}
+                      placeholder="Enter Twilio Auth Token"
+                      value={waConfig.twilio_auth_token}
+                      onChange={e => setWaConfig({ ...waConfig, twilio_auth_token: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Instance Name</label>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Twilio Sender Number</label>
                     <input
-                      className="input-field text-sm"
-                      placeholder="e.g. PetFlow_Spa"
-                      value={waConfig.instance_name}
-                      onChange={e => setWaConfig({ ...waConfig, instance_name: e.target.value })}
+                      className="input-field text-sm font-mono"
+                      placeholder="e.g. whatsapp:+14155238886"
+                      value={waConfig.twilio_phone_number}
+                      onChange={e => setWaConfig({ ...waConfig, twilio_phone_number: e.target.value })}
                     />
                   </div>
                   <div>
@@ -1478,7 +1471,7 @@ export default function SettingsPage() {
                   <div>
                     <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Agent Public URL</label>
                     <input
-                      className="input-field text-sm"
+                      className="input-field text-sm font-mono"
                       placeholder="https://agent.yourdomain.com"
                       value={waConfig.agent_public_url}
                       onChange={e => setWaConfig({ ...waConfig, agent_public_url: e.target.value })}
@@ -1495,6 +1488,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                {waConnected && (
+                  <div className="mb-5 p-4 rounded-xl bg-emerald-50/30 border border-emerald-100/50 text-xs text-emerald-800 leading-relaxed">
+                    <strong>🔗 Twilio Webhook Setup:</strong> Copy the Agent Webhook URL below and paste it as the Webhook URL for incoming messages in your <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline font-700 hover:text-emerald-900">Twilio Console</a>:
+                    <div className="flex gap-2 mt-2 items-center">
+                      <code className="bg-white px-2.5 py-1.5 rounded border border-gray-200 font-mono text-[11px] select-all flex-1 text-gray-800">
+                        {waConfig.agent_public_url ? `${waConfig.agent_public_url.endsWith('/') ? waConfig.agent_public_url : waConfig.agent_public_url + '/'}webhook` : 'https://<your-agent-url>/webhook'}
+                      </code>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mb-5">
                   <label className="text-xs font-700 text-gray-400 uppercase mb-2 block">AI System Prompt (Petro's Personality)</label>
                   <textarea
@@ -1510,8 +1514,8 @@ export default function SettingsPage() {
                 </div>
 
                 {waConnected && (
-                  <div className="mt-8 pt-6 border-t border-gray-100">
-                    <h4 className="text-sm font-600 mb-3">Test Connection</h4>
+                  <div className="mt-8 pt-6 border-t border-gray-100 mb-5">
+                    <h4 className="text-sm font-600 mb-3">Test Integration</h4>
                     <div className="flex gap-2">
                       <input
                         className="input-field text-sm"
@@ -1531,7 +1535,7 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {waConnected && waConfig.instance_name && (
+                {waConnected && (
                   <div 
                     className="mb-5"
                     style={{ 
@@ -1540,53 +1544,26 @@ export default function SettingsPage() {
                     }}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span style={{ fontWeight: 600, color: '#6b7280' }}>Instance:</span>
-                      <span style={{ fontWeight: 700, color: '#111' }}>{waConfig.instance_name}</span>
+                      <span style={{ fontWeight: 600, color: '#6b7280' }}>Sender Number:</span>
+                      <span style={{ fontWeight: 700, color: '#111' }}>{waConfig.twilio_phone_number}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span style={{ fontWeight: 600, color: '#6b7280' }}>Status:</span>
                       <span className="flex items-center gap-2">
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#25D366', display: 'inline-block' }} />
-                        <span style={{ fontWeight: 600, color: '#25D366' }}>Connected</span>
+                        <span style={{ fontWeight: 600, color: '#25D366' }}>Connected & Configured</span>
                       </span>
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-3">
-                  {waConnected ? (
-                    <>
-                      <button
-                        onClick={handleWhatsAppDisconnect}
-                        className="btn-outline flex-1 py-3"
-                      >
-                        Disconnect
-                      </button>
-                      <button
-                        onClick={() => checkWhatsAppStatus()}
-                        className="btn-outline flex-1 py-3 flex items-center justify-center gap-2"
-                      >
-                        {waChecking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                        Check Status
-                      </button>
-                    </>
-                  ) : (
+                  {waConnected && (
                     <button
-                      onClick={handleWhatsAppConnect}
-                      disabled={waStatus === 'connecting'}
-                      style={{
-                        width: '100%', padding: '0.875rem', border: 'none',
-                        background: '#25D366', borderRadius: 14, color: 'white',
-                        fontWeight: 700, fontSize: '0.9rem', cursor: waStatus === 'connecting' ? 'wait' : 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        boxShadow: '0 8px 20px rgba(37,211,102,0.25)',
-                      }}
+                      onClick={handleWhatsAppDisconnect}
+                      className="btn-outline w-full py-3"
                     >
-                      {waStatus === 'connecting' ? (
-                        <><Loader2 size={16} className="animate-spin" /> Connecting...</>
-                      ) : (
-                        <><Wifi size={16} /> Connect WhatsApp</>
-                      )}
+                      Clear Credentials / Disconnect
                     </button>
                   )}
                 </div>
@@ -1602,7 +1579,7 @@ export default function SettingsPage() {
                 {waSaving ? (
                   <><Loader2 size={16} className="animate-spin" /> Saving...</>
                 ) : (
-                  <><Save size={16} /> Save WhatsApp Config</>
+                  <><Save size={16} /> Save Twilio Config</>
                 )}
               </button>
             </div>

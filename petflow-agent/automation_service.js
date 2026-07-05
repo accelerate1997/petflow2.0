@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { PrismaClient } = require('@prisma/client');
-const { sendMessage } = require('./evolution');
+const { sendMessage } = require('./twilio');
 
 const prisma = new PrismaClient();
 
