@@ -632,8 +632,9 @@ export default function SettingsPage() {
       const { id, ...data } = waConfig
       await updateWhatsAppConfig(id || null, data)
       
-      // If connected, sync/register the webhook on Evolution API
-      if (waConnected && waConfig.evolution_api_url && waConfig.evolution_api_key) {
+      // If connected via Evolution (not Twilio), sync/register the webhook on Evolution API
+      const isTwilioActive = !!(waConfig.twilio_account_sid && waConfig.twilio_auth_token && waConfig.twilio_phone_number);
+      if (waConnected && !isTwilioActive && waConfig.evolution_api_url && waConfig.evolution_api_key) {
         const cleanUrl = waConfig.evolution_api_url.endsWith('/') ? waConfig.evolution_api_url.slice(0, -1) : waConfig.evolution_api_url
         await registerWebhook(cleanUrl)
       }
