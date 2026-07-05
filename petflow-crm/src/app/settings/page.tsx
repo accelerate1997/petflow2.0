@@ -1494,7 +1494,15 @@ export default function SettingsPage() {
                     <strong>🔗 Twilio Webhook Setup:</strong> Copy the Agent Webhook URL below and paste it as the Webhook URL for incoming messages in your <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline font-700 hover:text-emerald-900">Twilio Console</a>:
                     <div className="flex gap-2 mt-2 items-center">
                       <code className="bg-white px-2.5 py-1.5 rounded border border-gray-200 font-mono text-[11px] select-all flex-1 text-gray-800">
-                        {waConfig.agent_public_url ? `${waConfig.agent_public_url.endsWith('/') ? waConfig.agent_public_url : waConfig.agent_public_url + '/'}webhook` : 'https://<your-agent-url>/webhook'}
+                        {(() => {
+                          if (!waConfig.agent_public_url) return 'https://<your-agent-url>/webhook';
+                          let cleanUrl = waConfig.agent_public_url.trim();
+                          cleanUrl = cleanUrl.endsWith('/') ? cleanUrl.slice(0, -1) : cleanUrl;
+                          if (cleanUrl.toLowerCase().endsWith('/webhook')) {
+                            cleanUrl = cleanUrl.slice(0, -8);
+                          }
+                          return `${cleanUrl}/webhook`;
+                        })()}
                       </code>
                     </div>
                   </div>
