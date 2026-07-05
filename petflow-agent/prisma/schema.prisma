@@ -251,6 +251,9 @@ model WhatsAppConfig {
   twilio_account_sid  String?
   twilio_auth_token   String?
   twilio_phone_number String?
+  instagram_page_access_token String?
+  instagram_business_account_id String?
+  instagram_verify_token    String?
   created           DateTime @default(now())
   updated           DateTime @updatedAt
 }
@@ -264,6 +267,7 @@ model ChatSession {
   client          Client?       @relation(fields: [client_id], references: [id])
   last_message    String?
   is_paused       Boolean       @default(false)
+  channel         String        @default("whatsapp")
   created         DateTime      @default(now())
   updated         DateTime      @updatedAt
   messages        ChatMessage[]

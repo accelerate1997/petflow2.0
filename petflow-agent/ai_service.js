@@ -846,16 +846,20 @@ async function getOrCreateSession(phone) {
     const activeTenantId = waConfig?.tenantId || 'default-tenant-id';
 
     if (!session) {
-        // Find client if exists
-        const client = await prisma.client.findFirst({
-            where: { whatsapp_number: { contains: phone.slice(-10) }, tenantId: activeTenantId }
-        });
+        // Find client if exists (only for whatsapp phone numbers)
+        let client = null;
+        if (!phone.startsWith('instagram:')) {
+            client = await prisma.client.findFirst({
+                where: { whatsapp_number: { contains: phone.slice(-10) }, tenantId: activeTenantId }
+            });
+        }
 
         session = await prisma.chatSession.create({
             data: {
                 phone,
                 client_id: client?.id,
                 tenantId: activeTenantId,
+                channel: phone.startsWith('instagram:') ? 'instagram' : 'whatsapp',
                 last_message: 'New Session'
             },
             include: { messages: { orderBy: { created: 'desc' }, take: 50 } }

@@ -931,6 +931,9 @@ export async function getWhatsAppConfig() {
     twilio_account_sid: process.env.TWILIO_ACCOUNT_SID || '',
     twilio_auth_token: process.env.TWILIO_AUTH_TOKEN || '',
     twilio_phone_number: process.env.TWILIO_PHONE_NUMBER || '',
+    instagram_page_access_token: process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || '',
+    instagram_business_account_id: process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '',
+    instagram_verify_token: process.env.INSTAGRAM_VERIFY_TOKEN || '',
   }
 
   if (config) {
@@ -945,6 +948,9 @@ export async function getWhatsAppConfig() {
       twilio_account_sid: config.twilio_account_sid || defaults.twilio_account_sid,
       twilio_auth_token: config.twilio_auth_token ? decrypt(config.twilio_auth_token) : defaults.twilio_auth_token,
       twilio_phone_number: config.twilio_phone_number || defaults.twilio_phone_number,
+      instagram_page_access_token: config.instagram_page_access_token ? decrypt(config.instagram_page_access_token) : defaults.instagram_page_access_token,
+      instagram_business_account_id: config.instagram_business_account_id || defaults.instagram_business_account_id,
+      instagram_verify_token: config.instagram_verify_token || defaults.instagram_verify_token,
     }
   }
 
@@ -959,6 +965,7 @@ export async function updateWhatsAppConfig(id: string | null, data: any) {
     evolution_api_key: data.evolution_api_key ? encrypt(data.evolution_api_key) : null,
     openai_api_key: data.openai_api_key ? encrypt(data.openai_api_key) : null,
     twilio_auth_token: data.twilio_auth_token ? encrypt(data.twilio_auth_token) : null,
+    instagram_page_access_token: data.instagram_page_access_token ? encrypt(data.instagram_page_access_token) : null,
   }
 
   if (id) {

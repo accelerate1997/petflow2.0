@@ -3,6 +3,25 @@
 import { useState, useEffect } from 'react'
 import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck } from 'lucide-react'
 import type { Settings, BusinessHours, Van } from '@/types'
+
+const Instagram = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={props.size || 24}
+    height={props.size || 24}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={props.color || "currentColor"}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={props.className}
+  >
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+)
 import { getSettings, updateSettings, getWhatsAppConfig, updateWhatsAppConfig, sendTestWhatsApp, updateUserAccount, getVans, createVan, updateVan, deleteVan } from '@/lib/actions'
 import { getPaymentConfig, updatePaymentConfig } from '@/lib/payment-actions'
 import { COUNTRY_CONFIGS } from '@/lib/countryConfigs'
@@ -127,7 +146,7 @@ export default function SettingsPage() {
     setLogoUploading(false)
   }
 
-  // WhatsApp Integration state
+  // WhatsApp / Integrations Integration state
   const [waConfig, setWaConfig] = useState({
     id: '',
     evolution_api_url: '',
@@ -141,6 +160,9 @@ export default function SettingsPage() {
     twilio_account_sid: '',
     twilio_auth_token: '',
     twilio_phone_number: '',
+    instagram_page_access_token: '',
+    instagram_business_account_id: '',
+    instagram_verify_token: '',
   })
   const [waConnected, setWaConnected] = useState(false)
   const [waStatus, setWaStatus] = useState<'disconnected' | 'connecting' | 'awaiting_scan' | 'connected'>('disconnected')
@@ -308,6 +330,9 @@ export default function SettingsPage() {
           twilio_account_sid: data.twilio_account_sid || '',
           twilio_auth_token: data.twilio_auth_token || '',
           twilio_phone_number: data.twilio_phone_number || '',
+          instagram_page_access_token: (data as any).instagram_page_access_token || '',
+          instagram_business_account_id: (data as any).instagram_business_account_id || '',
+          instagram_verify_token: (data as any).instagram_verify_token || '',
         })
         if (data.twilio_account_sid && data.twilio_auth_token && data.twilio_phone_number) {
           setWaConnected(true)
@@ -605,7 +630,7 @@ export default function SettingsPage() {
   }
 
   const handleWhatsAppDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect WhatsApp?')) return
+    if (!confirm('Are you sure you want to clear credentials and disconnect WhatsApp?')) return
 
     try {
       const cleanUrl = waConfig.evolution_api_url.endsWith('/') ? waConfig.evolution_api_url.slice(0, -1) : waConfig.evolution_api_url
@@ -618,9 +643,28 @@ export default function SettingsPage() {
       })
     } catch { }
 
+    setWaConfig(prev => ({
+      ...prev,
+      twilio_account_sid: '',
+      twilio_auth_token: '',
+      twilio_phone_number: '',
+    }))
+
     setWaConnected(false)
     setWaStatus('disconnected')
-    setWaMessage({ type: 'success', text: 'WhatsApp disconnected.' })
+    setWaMessage({ type: 'success', text: 'WhatsApp disconnected. Save to apply.' })
+    setTimeout(() => setWaMessage(null), 3000)
+  }
+
+  const handleInstagramDisconnect = () => {
+    if (!confirm('Are you sure you want to disconnect Instagram?')) return
+    setWaConfig(prev => ({
+      ...prev,
+      instagram_page_access_token: '',
+      instagram_business_account_id: '',
+      instagram_verify_token: '',
+    }))
+    setWaMessage({ type: 'success', text: 'Instagram configuration cleared. Save to apply.' })
     setTimeout(() => setWaMessage(null), 3000)
   }
 
@@ -1579,6 +1623,116 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* ─── Instagram Card ─── */}
+            {(() => {
+              const igConnected = !!(waConfig.instagram_page_access_token && waConfig.instagram_business_account_id);
+              return (
+                <div 
+                  className="card"
+                  style={{ 
+                    position: 'relative', 
+                    overflow: 'hidden',
+                    border: igConnected ? '1px solid rgba(225,48,108,0.3)' : '1px solid rgba(0,0,0,0.05)',
+                    boxShadow: igConnected ? '0 8px 24px rgba(225,48,108,0.08)' : undefined,
+                  }}
+                >
+                  {igConnected && (
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#E1306C' }} />
+                  )}
+
+                  <div style={{ padding: '1.75rem' }}>
+                    <div className="flex items-start gap-4 mb-5">
+                      <div 
+                        className="flex items-center justify-center flex-shrink-0"
+                        style={{
+                          width: 52, height: 52, borderRadius: 14,
+                          background: 'rgba(225,48,108,0.08)',
+                          border: '1px solid rgba(225,48,108,0.15)',
+                        }}
+                      >
+                        <Instagram size={26} color="#E1306C" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
+                            Meta Instagram DM
+                          </h3>
+                          {igConnected && <CheckCircle2 size={18} color="#E1306C" />}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1" style={{ lineHeight: 1.6 }}>
+                          Connect Meta Messenger API to power Petro — your AI grooming assistant that auto-responds to clients 24/7 over Instagram DMs.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                      <div>
+                        <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Instagram Page Access Token</label>
+                        <input
+                          type="password"
+                          className="input-field text-sm"
+                          placeholder="EAAC..."
+                          value={waConfig.instagram_page_access_token || ''}
+                          onChange={e => setWaConfig({ ...waConfig, instagram_page_access_token: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Instagram Business Account ID</label>
+                        <input
+                          className="input-field text-sm font-mono"
+                          placeholder="e.g. 178414..."
+                          value={waConfig.instagram_business_account_id || ''}
+                          onChange={e => setWaConfig({ ...waConfig, instagram_business_account_id: e.target.value })}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Webhook Verify Token</label>
+                        <input
+                          className="input-field text-sm font-mono"
+                          placeholder="Create a custom token to verify your webhook in Meta Developer portal (e.g. my_secret_token)"
+                          value={waConfig.instagram_verify_token || ''}
+                          onChange={e => setWaConfig({ ...waConfig, instagram_verify_token: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {igConnected && (
+                      <div className="mb-5 p-4 rounded-xl bg-purple-50/30 border border-purple-100/50 text-xs text-purple-800 leading-relaxed">
+                        <strong>🔗 Instagram Webhook Setup:</strong> Copy the Instagram Webhook URL below and paste it as the Webhook callback URL in your <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline font-700 hover:text-purple-900">Meta Developer Console</a>:
+                        <div className="flex gap-2 mt-2 items-center">
+                          <code className="bg-white px-2.5 py-1.5 rounded border border-gray-200 font-mono text-[11px] select-all flex-1 text-gray-800">
+                            {(() => {
+                              if (!waConfig.agent_public_url) return 'https://<your-agent-url>/webhook/instagram';
+                              let cleanUrl = waConfig.agent_public_url.trim();
+                              cleanUrl = cleanUrl.endsWith('/') ? cleanUrl.slice(0, -1) : cleanUrl;
+                              if (cleanUrl.toLowerCase().endsWith('/webhook')) {
+                                cleanUrl = cleanUrl.slice(0, -8);
+                              }
+                              return `${cleanUrl}/webhook/instagram`;
+                            })()}
+                          </code>
+                        </div>
+                        <p className="mt-2 text-[10px] text-purple-600">
+                          Use the Webhook Verify Token configured above when setting up the webhook in the Meta Console.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      {igConnected && (
+                        <button
+                          onClick={handleInstagramDisconnect}
+                          className="btn-outline w-full py-3"
+                        >
+                          Disconnect Instagram
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="flex justify-end">
               <button
                 className="btn-sage min-w-[200px]"
@@ -1588,7 +1742,7 @@ export default function SettingsPage() {
                 {waSaving ? (
                   <><Loader2 size={16} className="animate-spin" /> Saving...</>
                 ) : (
-                  <><Save size={16} /> Save Twilio Config</>
+                  <><Save size={16} /> Save Integrations Config</>
                 )}
               </button>
             </div>

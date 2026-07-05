@@ -5,7 +5,16 @@ const http    = require('http');
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 const { processMessage, clearSession, getActiveSessions, getSessionInfo } = require('./ai_service');
-const { sendMessage } = require('./twilio');
+const twilioClient = require('./twilio');
+const instagramClient = require('./instagram');
+
+async function sendReply(remoteJid, text) {
+    if (remoteJid.startsWith('instagram:')) {
+        return await instagramClient.sendMessage(remoteJid, text);
+    } else {
+        return await twilioClient.sendMessage(remoteJid, text);
+    }
+}
 const { initAutomation } = require('./automation_service');
 const rateLimit = require('express-rate-limit');
 
@@ -320,7 +329,7 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
         });
         if (reply) {
             console.log(`💬 Luna → ${phone}: ${reply.substring(0, 80)}...`);
-            await sendMessage(remoteJid, reply);
+            await sendReply(remoteJid, reply);
         } else {
             console.log(`👤 [MANUAL MODE] Saved incoming message for ${phone}. AI response skipped.`);
         }
@@ -328,6 +337,106 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
     } catch (error) {
         console.error('Webhook error:', error);
         res.sendStatus(500);
+    }
+});
+
+// ─── Instagram Webhook (GET Verification) ─────────────────────────────────────
+app.get('/webhook/instagram', async (req, res) => {
+    try {
+        const mode = req.query['hub.mode'];
+        const token = req.query['hub.verify_token'];
+        const challenge = req.query['hub.challenge'];
+
+        // Find the configuration to verify the token
+        const config = await prisma.whatsAppConfig.findFirst({
+            where: { instagram_verify_token: { not: null } }
+        });
+        const verifyToken = config?.instagram_verify_token || process.env.INSTAGRAM_VERIFY_TOKEN || 'petflow_verify_token';
+
+        if (mode === 'subscribe' && token === verifyToken) {
+            console.log('[INSTAGRAM WEBHOOK] Verified successfully.');
+            return res.status(200).send(challenge);
+        } else {
+            console.warn('[INSTAGRAM WEBHOOK] Verification failed. Tokens do not match.');
+            return res.sendStatus(403);
+        }
+    } catch (error) {
+        console.error('Error verifying Instagram webhook:', error);
+        return res.sendStatus(500);
+    }
+});
+
+// ─── Instagram Webhook (POST Events) ──────────────────────────────────────────
+app.post('/webhook/instagram', webhookLimiter, async (req, res) => {
+    const requestApiKey = req.query.apikey || req.headers['apikey'] || req.headers['x-api-key'];
+    const petflowApiKey = process.env.PETFLOW_API_KEY;
+
+    if (petflowApiKey && requestApiKey !== petflowApiKey) {
+        console.warn(`[INSTAGRAM WEBHOOK] Unauthorized connection attempt. Invalid apikey.`);
+        return res.status(401).json({ error: 'Unauthorized: Invalid apikey header' });
+    }
+
+    try {
+        const body = req.body;
+        if (body.object === 'instagram') {
+            for (const entry of body.entry) {
+                if (!entry.messaging) continue;
+                for (const messagingEvent of entry.messaging) {
+                    if (messagingEvent.message && !messagingEvent.message.is_echo) {
+                        const senderId = messagingEvent.sender.id;
+                        const text = messagingEvent.message.text;
+
+                        if (!text) continue;
+
+                        const remoteJid = `instagram:${senderId}`;
+                        const phone = remoteJid; // Stored prefixed in ChatSession
+                        const msgId = messagingEvent.message.mid;
+
+                        console.log(`\n🔥 INSTAGRAM WEBHOOK: Incoming from ${senderId}: ${text}`);
+
+                        if (isDuplicate(msgId)) {
+                            console.log(`[IGNORE] Duplicate Instagram message: ${msgId}`);
+                            continue;
+                        }
+
+                        if (checkBotLoop(remoteJid)) {
+                            console.warn(`⚠️ [SAFETY TRIGGER] Bot loop detected for Instagram user ${senderId}. Suppressing AI response.`);
+                            continue;
+                        }
+
+                        recentWebhooks.unshift({
+                            time: new Date().toISOString(),
+                            phone: `ig:${senderId}`,
+                            text: text.substring(0, 60)
+                        });
+                        if (recentWebhooks.length > 10) recentWebhooks.pop();
+
+                        // Simulate small read/receive delay (1-2.5s)
+                        const readDelay = Math.floor(Math.random() * 1500) + 1000;
+                        await new Promise(resolve => setTimeout(resolve, readDelay));
+
+                        // Process the Instagram message via Petro AI
+                        processMessage(text, remoteJid, (savedMsg) => {
+                            io.to(savedMsg.session_id).emit('new_message', savedMsg);
+                            if (savedMsg.role === 'user' || savedMsg.role === 'assistant') {
+                                io.emit('session_updated', {
+                                    sessionId: savedMsg.session_id,
+                                    lastMessage: savedMsg.content.slice(0, 100)
+                                });
+                            }
+                        }).catch(err => {
+                            console.error('[AI Instagram Processing Error]:', err);
+                        });
+                    }
+                }
+            }
+            return res.status(200).send('EVENT_RECEIVED');
+        } else {
+            return res.sendStatus(404);
+        }
+    } catch (error) {
+        console.error('Instagram Webhook error:', error);
+        return res.sendStatus(500);
     }
 });
 

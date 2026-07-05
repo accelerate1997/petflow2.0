@@ -37,6 +37,9 @@ async function getWhatsAppConfig(tenantId?: string) {
     twilio_account_sid: process.env.TWILIO_ACCOUNT_SID || '',
     twilio_auth_token: process.env.TWILIO_AUTH_TOKEN || '',
     twilio_phone_number: process.env.TWILIO_PHONE_NUMBER || '',
+    instagram_page_access_token: process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || '',
+    instagram_business_account_id: process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '',
+    instagram_verify_token: process.env.INSTAGRAM_VERIFY_TOKEN || '',
   };
 
   if (config) {
@@ -47,6 +50,9 @@ async function getWhatsAppConfig(tenantId?: string) {
       twilio_account_sid: config.twilio_account_sid || defaults.twilio_account_sid,
       twilio_auth_token: config.twilio_auth_token ? decrypt(config.twilio_auth_token) : defaults.twilio_auth_token,
       twilio_phone_number: config.twilio_phone_number || defaults.twilio_phone_number,
+      instagram_page_access_token: config.instagram_page_access_token ? decrypt(config.instagram_page_access_token) : defaults.instagram_page_access_token,
+      instagram_business_account_id: config.instagram_business_account_id || defaults.instagram_business_account_id,
+      instagram_verify_token: config.instagram_verify_token || defaults.instagram_verify_token,
     };
   }
 
@@ -82,6 +88,30 @@ function saveBase64Image(base64Data: string): string {
 
 export async function sendWhatsApp(number: string, text: string, tenantId?: string) {
   const config = await getWhatsAppConfig(tenantId);
+
+  if (number.startsWith('instagram:')) {
+    const cleanTo = number.replace('instagram:', '').replace(/\D/g, '');
+    const accessToken = config.instagram_page_access_token;
+    if (!accessToken) {
+      console.warn('Instagram: Missing Page Access Token. Skipping message.');
+      return null;
+    }
+    const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: cleanTo },
+          message: { text: text }
+        })
+      });
+      return await response.json();
+    } catch (e) {
+      console.error('Failed to send Instagram DM:', e);
+      return null;
+    }
+  }
 
   const accountSid = config.twilio_account_sid;
   const authToken = config.twilio_auth_token;
@@ -136,6 +166,50 @@ export async function sendWhatsApp(number: string, text: string, tenantId?: stri
 
 export async function sendWhatsAppMedia(number: string, media: string, caption?: string, tenantId?: string) {
   const config = await getWhatsAppConfig(tenantId);
+
+  if (number.startsWith('instagram:')) {
+    const cleanTo = number.replace('instagram:', '').replace(/\D/g, '');
+    const accessToken = config.instagram_page_access_token;
+    if (!accessToken) {
+      console.warn('Instagram: Missing Page Access Token for media. Skipping.');
+      return null;
+    }
+    let mediaUrl = media;
+    if (media.startsWith('data:')) {
+      try {
+        mediaUrl = saveBase64Image(media);
+      } catch (e) {
+        console.error('Failed to save base64 image:', e);
+        return null;
+      }
+    }
+    const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: cleanTo },
+          message: {
+            attachment: {
+              type: 'image',
+              payload: {
+                url: mediaUrl,
+                is_reusable: true
+              }
+            }
+          }
+        })
+      });
+      if (caption && response.ok) {
+        await sendWhatsApp(number, caption, tenantId);
+      }
+      return await response.json();
+    } catch (e) {
+      console.error('Failed to send Instagram media DM:', e);
+      return null;
+    }
+  }
 
   const accountSid = config.twilio_account_sid;
   const authToken = config.twilio_auth_token;
