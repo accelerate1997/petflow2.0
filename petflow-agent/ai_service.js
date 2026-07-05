@@ -4,7 +4,16 @@ const path = require('path');
 const OpenAI = require('openai');
 const { PrismaClient } = require('@prisma/client');
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openAiKeyGlobal = process.env.OPENAI_API_KEY || '';
+const globalClientOptions = { apiKey: openAiKeyGlobal };
+if (openAiKeyGlobal.startsWith('sk-or-') || openAiKeyGlobal.includes('openrouter')) {
+    globalClientOptions.baseURL = "https://openrouter.ai/api/v1";
+    globalClientOptions.defaultHeaders = {
+        "HTTP-Referer": "https://petflow.io",
+        "X-Title": "PetFlow CRM",
+    };
+}
+const openai = new OpenAI(globalClientOptions);
 const prisma = new PrismaClient();
 
 const { buildSystemPrompt, loadConfig, getEnabledToolNames, getBookingRules } = require('./petro_config_loader');
@@ -888,7 +897,22 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         if (!openAiKey) {
             throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
         }
-        const clientOpenai = new OpenAI({ apiKey: openAiKey });
+        
+        const clientOptions = { apiKey: openAiKey };
+        if (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter')) {
+            clientOptions.baseURL = "https://openrouter.ai/api/v1";
+            clientOptions.defaultHeaders = {
+                "HTTP-Referer": "https://petflow.io",
+                "X-Title": "PetFlow CRM",
+            };
+        }
+        const clientOpenai = new OpenAI(clientOptions);
+
+        const modelName = process.env.OPENAI_MODEL || (
+            (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter'))
+                ? 'openai/gpt-4o-mini'
+                : 'gpt-4o-mini'
+        );
 
         let systemPrompt = await buildSystemPrompt(session.tenantId);
         systemPrompt += `\n\nActive Client Phone: ${phone}\n(Use this phone number whenever calling tools that require a client's or owner's phone number.)`;
@@ -972,7 +996,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         }
 
         let response = await clientOpenai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: modelName,
             messages: chatContext,
             tools: filteredTools.length > 0 ? filteredTools : undefined,
             tool_choice: filteredTools.length > 0 ? "auto" : undefined,
@@ -1023,7 +1047,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
 
             // Get final response from AI after tool results — keep temperature low for factual accuracy
             response = await clientOpenai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: modelName,
                 messages: chatContext,
                 temperature: 0.1,
             });
@@ -1094,7 +1118,22 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
         if (!openAiKey) {
             throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
         }
-        const clientOpenai = new OpenAI({ apiKey: openAiKey });
+        
+        const clientOptions = { apiKey: openAiKey };
+        if (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter')) {
+            clientOptions.baseURL = "https://openrouter.ai/api/v1";
+            clientOptions.defaultHeaders = {
+                "HTTP-Referer": "https://petflow.io",
+                "X-Title": "PetFlow CRM",
+            };
+        }
+        const clientOpenai = new OpenAI(clientOptions);
+
+        const modelName = process.env.OPENAI_MODEL || (
+            (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter'))
+                ? 'openai/gpt-4o-mini'
+                : 'gpt-4o-mini'
+        );
         
         // 2. Compile draft system prompt
         const systemPrompt = compileSystemPrompt(draftConfig, whatsAppConfig, settings);
@@ -1119,7 +1158,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
 
         executionLogs.push(`[OpenAI] Sending chat completion request...`);
         let response = await clientOpenai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: modelName,
             messages: chatContext,
             tools: filteredTools.length > 0 ? filteredTools : undefined,
             tool_choice: filteredTools.length > 0 ? "auto" : undefined,
@@ -1159,7 +1198,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
 
             executionLogs.push(`[OpenAI] Sending second completion request with tool results...`);
             response = await clientOpenai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: modelName,
                 messages: chatContext,
             });
             assistantMessage = response.choices[0].message;
