@@ -318,7 +318,62 @@ export async function getClients(search?: string) {
 
 export async function createClient(data: any) {
   const tenantId = await getCurrentTenantId()
-  const client = await prisma.client.create({ data: { ...data, tenantId } })
+  const user = await getCurrentUser()
+
+  // Separate consent fields from core client data
+  const { consent_given, consent_date, consent_channel, marketing_opt_in, ...clientData } = data
+
+  const client = await prisma.client.create({
+    data: {
+      ...clientData,
+      tenantId,
+      // ─── GDPR / DPDP: Save consent at creation time ────────────────────────
+      consent_given: consent_given ?? false,
+      consent_date: consent_given ? (consent_date ?? new Date()) : null,
+      consent_channel: consent_given ? (consent_channel ?? 'manual') : null,
+      marketing_opt_in: marketing_opt_in ?? false,
+    }
+  })
+
+  // Log the consent event if consent was given (immutable audit trail)
+  if (consent_given) {
+    await prisma.consentLog.create({
+      data: {
+        tenantId,
+        client_id: client.id,
+        phone: client.whatsapp_number,
+        event: 'granted',
+        channel: consent_channel ?? 'manual',
+        message_text: 'Verbal consent collected by staff at walk-in registration',
+      }
+    })
+
+    if (marketing_opt_in) {
+      await prisma.consentLog.create({
+        data: {
+          tenantId,
+          client_id: client.id,
+          phone: client.whatsapp_number,
+          event: 'marketing_opt_in',
+          channel: consent_channel ?? 'manual',
+          message_text: 'Marketing consent collected by staff at walk-in registration',
+        }
+      })
+    }
+  }
+
+  // Audit log — who created this client record
+  await prisma.auditLog.create({
+    data: {
+      tenantId,
+      user_id: user?.id,
+      user_email: user?.email,
+      action: 'client.created',
+      entity_type: 'Client',
+      entity_id: client.id,
+      metadata: { channel: consent_channel ?? 'manual', consent_given: consent_given ?? false }
+    }
+  })
 
   // Fire outgoing webhook
   fireWebhook('client.created', tenantId, {
@@ -332,18 +387,48 @@ export async function createClient(data: any) {
   revalidatePath('/clients')
   return client
 }
-
 export async function updateClient(id: string, data: any) {
   const tenantId = await getCurrentTenantId()
+  const user = await getCurrentUser()
+
+  // Fetch current state before update to detect consent changes
+  const existing = await prisma.client.findFirst({ where: { id, tenantId } })
+
+  const updateData: any = {}
+  if (data.name !== undefined) updateData.name = data.name
+  if (data.whatsapp_number !== undefined) updateData.whatsapp_number = data.whatsapp_number
+  if (data.email !== undefined) updateData.email = data.email
+  if (data.address !== undefined) updateData.address = data.address
+  if (data.total_spend !== undefined) updateData.total_spend = data.total_spend
+
+  // Handle marketing consent change — record timestamp
+  if (data.marketing_opt_in !== undefined && data.marketing_opt_in !== (existing as any)?.marketing_opt_in) {
+    updateData.marketing_opt_in = data.marketing_opt_in
+    updateData.marketing_opt_in_date = new Date()
+
+    // Immutable consent audit entry
+    try {
+      await (prisma as any).consentLog.create({
+        data: {
+          tenantId,
+          client_id: id,
+          phone: existing?.whatsapp_number ?? null,
+          event: data.marketing_opt_in ? 'marketing_opt_in' : 'marketing_opt_out',
+          channel: 'staff_update',
+          message_text: data.marketing_opt_in
+            ? 'Marketing consent granted by staff via CRM update'
+            : 'Marketing consent withdrawn by staff via CRM update',
+          user_id: user?.id ?? null,
+        }
+      })
+    } catch {
+      // consentLog may not exist in older schema versions — fail silently
+    }
+  }
+
   const client = await prisma.client.update({
     where: { id, tenantId },
-    data: {
-      name: data.name,
-      whatsapp_number: data.whatsapp_number,
-      email: data.email,
-      address: data.address,
-      total_spend: data.total_spend,
-    }
+    data: updateData,
   })
 
   // Fire outgoing webhook
@@ -359,6 +444,85 @@ export async function updateClient(id: string, data: any) {
   return client
 }
 
+/**
+ * GDPR / DPDP Compliant: Anonymize a client's PII on erasure request.
+ * 
+ * What it does:
+ * - Nulls out name, phone, email, address (PII removed)
+ * - Marks client as anonymized
+ * - Deletes chat messages (personal conversations)
+ * - KEEPS invoices, appointments, sales — required by law for 7 years
+ * - Logs the action to AuditLog
+ * 
+ * Use this for all real "right to erasure" / deletion requests.
+ */
+export async function anonymizeClient(id: string) {
+  const tenantId = await getCurrentTenantId()
+  const user = await getCurrentUser()
+
+  const client = await prisma.client.findFirst({ where: { id, tenantId } })
+  if (!client) throw new Error('Client not found')
+
+  const anonymizedName = `[Deleted User ${id.slice(-6)}]`
+
+  // 1. Anonymize PII on the client record — keep financial & appointment history
+  await prisma.client.update({
+    where: { id },
+    data: {
+      name: anonymizedName,
+      whatsapp_number: null,
+      email: null,
+      address: null,
+      consent_given: false,
+      marketing_opt_in: false,
+      is_anonymized: true,
+      deletion_requested_at: new Date(),
+    }
+  })
+
+  // 2. Delete chat messages (personal conversations — not financial records)
+  const chatSessions = await prisma.chatSession.findMany({ where: { client_id: id }, select: { id: true } })
+  const sessionIds = chatSessions.map(s => s.id)
+  if (sessionIds.length > 0) {
+    await prisma.chatMessage.deleteMany({ where: { session_id: { in: sessionIds } } })
+    await prisma.chatSession.deleteMany({ where: { client_id: id } })
+  }
+
+  // 3. Anonymize campaign logs mentioning this client's phone
+  if (client.whatsapp_number) {
+    await prisma.campaignLog.updateMany({
+      where: { phone: client.whatsapp_number },
+      data: { clientName: '[Deleted]', phone: '[Deleted]' }
+    })
+  }
+
+  // 4. Log the erasure action (immutable audit trail)
+  await prisma.auditLog.create({
+    data: {
+      tenantId,
+      user_id: user?.id,
+      user_email: user?.email,
+      action: 'client.anonymized',
+      entity_type: 'Client',
+      entity_id: id,
+      metadata: {
+        reason: 'right_to_erasure',
+        invoices_retained: true,
+        appointments_retained: true,
+      }
+    }
+  })
+
+  revalidatePath('/clients')
+  return { success: true }
+}
+
+/**
+ * Hard delete — removes ALL client data including financial records.
+ * ⚠️  NOT compliant for real clients with transaction history.
+ *     Use ONLY for test accounts or clients with zero invoices/appointments.
+ *     For real erasure requests, use anonymizeClient() above.
+ */
 export async function deleteClient(id: string) {
   // Delete in dependency order to respect all foreign key constraints
 
@@ -401,11 +565,6 @@ export async function deleteClient(id: string) {
   revalidatePath('/clients')
 }
 
-// ─── Pets ─────────────────────────────────────────────────────────────────────
-
-export async function getPets() {
-  const tenantId = await getCurrentTenantId()
-  return await prisma.pet.findMany({
     where: { tenantId },
     include: { owner: true, vaccinations: true },
     orderBy: { created: 'desc' }
@@ -2039,7 +2198,18 @@ export async function broadcastCampaign(campaignId: string) {
   });
 
   const filters = (campaign.segmentFilters || {}) as SegmentFilters;
-  const clients = await getSegmentedClients(filters);
+  const allClients = await getSegmentedClients(filters);
+
+  // ─── GDPR / DPDP: Only send to clients who have opted in to marketing ───────
+  const clients = allClients.filter(c => c.marketing_opt_in === true)
+  const skippedCount = allClients.length - clients.length
+
+  if (skippedCount > 0) {
+    console.log(`[Campaign ${campaignId}] Skipped ${skippedCount} client(s) without marketing opt-in.`)
+  }
+
+  // Compliance: opt-out footer appended to every campaign message
+  const OPT_OUT_FOOTER = '\n\n_Reply STOP to unsubscribe from marketing messages._'
 
   let successCount = 0;
   let errorCount = 0;
@@ -2050,6 +2220,9 @@ export async function broadcastCampaign(campaignId: string) {
     let personalizedMsg = campaign.message.replace(/{name}/g, client.name);
     const petName = client.pets[0]?.pet_name || 'your pet';
     personalizedMsg = personalizedMsg.replace(/{pet_name}/g, petName);
+
+    // Always append opt-out footer (regulatory requirement)
+    personalizedMsg = personalizedMsg + OPT_OUT_FOOTER
 
     try {
       let res;
@@ -2114,8 +2287,9 @@ export async function broadcastCampaign(campaignId: string) {
 
   revalidatePath('/marketing');
 
-  return { successCount, failedCount: errorCount };
+  return { successCount, failedCount: errorCount, skippedCount };
 }
+
 
 export async function getPetflowApiKey() {
   return process.env.PETFLOW_API_KEY || ''
