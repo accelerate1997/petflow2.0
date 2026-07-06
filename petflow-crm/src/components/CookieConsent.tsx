@@ -34,6 +34,7 @@ export default function CookieConsent() {
     preferences: false,
   })
   const [mounted, setMounted] = useState(false)
+  const [hasConsented, setHasConsented] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -42,30 +43,47 @@ export default function CookieConsent() {
       // Small delay so the page renders first
       const t = setTimeout(() => setVisible(true), 800)
       return () => clearTimeout(t)
+    } else {
+      setHasConsented(true)
+      setConsent(existing)
     }
   }, [])
 
   const acceptAll = () => {
     const full: ConsentState = { necessary: true, analytics: true, preferences: true }
     saveConsent(full)
+    setConsent(full)
     setVisible(false)
+    setHasConsented(true)
   }
 
   const rejectAll = () => {
     const minimal: ConsentState = { necessary: true, analytics: false, preferences: false }
     saveConsent(minimal)
+    setConsent(minimal)
     setVisible(false)
+    setHasConsented(true)
   }
 
   const saveCustom = () => {
     saveConsent(consent)
     setVisible(false)
+    setHasConsented(true)
   }
 
-  if (!mounted || !visible) return null
+  const openPreferences = () => {
+    const existing = loadConsent()
+    if (existing) setConsent(existing)
+    setShowDetails(true)
+    setVisible(true)
+  }
+
+  if (!mounted) return null
 
   return (
     <>
+      {visible && (
+        <>
       {/* Backdrop blur on mobile */}
       <div
         className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-[9990] md:hidden"
@@ -249,6 +267,23 @@ export default function CookieConsent() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* Persistent Manage Preferences button — shown after consent given */}
+      {hasConsented && !visible && (
+        <button
+          onClick={openPreferences}
+          aria-label="Manage cookie preferences"
+          title="Manage cookie preferences"
+          className="fixed bottom-8 left-4 z-[9990] flex items-center gap-1.5 px-3 py-2 rounded-full shadow-md border border-gray-200 bg-white/90 backdrop-blur text-xs font-medium text-gray-500 hover:text-gray-700 hover:shadow-lg transition-all"
+          style={{ animation: 'cookieFadeIn 0.3s ease' }}
+        >
+          <Cookie size={13} style={{ color: 'var(--sage-dark)' }} />
+          Cookies
+        </button>
+      )}
+
 
       <style jsx global>{`
         @keyframes cookieSlideUp {

@@ -219,6 +219,14 @@ export default function LoginPage() {
               Sign In with Google
             </button>
           </form>
+
+          {/* Privacy & Terms links */}
+          <p className="text-center text-xs text-gray-400 mt-5">
+            By signing in, you agree to our{' '}
+            <a href="/terms" className="underline hover:text-gray-600" style={{ color: 'var(--sage-dark)' }}>Terms of Service</a>
+            {' '}and{' '}
+            <a href="/privacy-policy" className="underline hover:text-gray-600" style={{ color: 'var(--sage-dark)' }}>Privacy Policy</a>.
+          </p>
         </div>
       </div>
     </div>

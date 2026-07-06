@@ -194,6 +194,13 @@ export default function RegisterPage() {
                   'Create Account'
                 )}
               </button>
+
+              <p className="text-center text-xs text-gray-400 mt-1">
+                By creating an account you agree to our{' '}
+                <a href="/terms" className="underline" style={{ color: 'var(--sage-dark)' }}>Terms</a>
+                {' '}&amp;{' '}
+                <a href="/privacy-policy" className="underline" style={{ color: 'var(--sage-dark)' }}>Privacy Policy</a>.
+              </p>
             </form>
           </>
         )}
