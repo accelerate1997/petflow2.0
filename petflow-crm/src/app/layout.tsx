@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Providers from '@/components/Providers'
 import AppLayout from '@/components/AppLayout'
+import CookieConsent from '@/components/CookieConsent'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getTenantFromHost } from '@/lib/tenant-utils'
@@ -53,6 +54,7 @@ export default async function RootLayout({
       <body suppressHydrationWarning={true}>
         <Providers>
           <AppLayout settings={settings as any}>{children}</AppLayout>
+          <CookieConsent />
           <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none z-[9999]">
             v1.0.2
           </div>
