@@ -42,6 +42,8 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
     const totalPaid = paidLinks.reduce((sum: number, l: any) => sum + l.amount, 0)
     const remainingBalance = Math.max(0, invoice.total_amount - totalPaid)
 
+    const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
+
     return (
       <>
         <style>{`
