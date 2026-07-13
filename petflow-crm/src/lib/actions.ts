@@ -401,10 +401,26 @@ export async function updateClient(id: string, data: any) {
   if (data.address !== undefined) updateData.address = data.address
   if (data.total_spend !== undefined) updateData.total_spend = data.total_spend
 
+  // Handle consent_given mapping
+  if (data.consent_given !== undefined) {
+    updateData.consent_given = data.consent_given
+    if (data.consent_given && !existing?.consent_given) {
+      updateData.consent_date = new Date()
+      updateData.consent_channel = 'manual'
+    } else if (!data.consent_given) {
+      updateData.consent_date = null
+      updateData.consent_channel = null
+    }
+  }
+
   // Handle marketing consent change — record timestamp
   if (data.marketing_opt_in !== undefined && data.marketing_opt_in !== (existing as any)?.marketing_opt_in) {
     updateData.marketing_opt_in = data.marketing_opt_in
-    updateData.marketing_opt_in_date = new Date()
+    if (!data.marketing_opt_in) {
+      updateData.marketing_opt_out_at = new Date()
+    } else {
+      updateData.marketing_opt_out_at = null
+    }
 
     // Immutable consent audit entry
     try {
