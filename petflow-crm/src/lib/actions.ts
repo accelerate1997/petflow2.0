@@ -1929,6 +1929,7 @@ export async function getInvoices() {
     orderBy: { created: 'desc' },
     include: {
       client: true,
+      payment_links: true,
       appointment: {
         include: {
           pet: {

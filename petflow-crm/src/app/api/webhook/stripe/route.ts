@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { apiRateLimiter } from '@/lib/rate-limiter'
 import { decrypt } from '@/lib/encryption'
+import { sendWhatsApp } from '@/lib/whatsapp'
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '127.0.0.1'
@@ -149,6 +150,50 @@ export async function POST(req: NextRequest) {
           payment_method: 'Online (Stripe)',
         },
       })
+    }
+
+    // Send WhatsApp confirmation
+    try {
+      const fullInvoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          client: true,
+          appointment: {
+            include: {
+              pet: true
+            }
+          },
+          boarding_reservation: {
+            include: {
+              pet: true
+            }
+          }
+        }
+      })
+
+      const clientPhone = fullInvoice?.client?.whatsapp_number
+      const clientName = fullInvoice?.client?.name
+
+      if (clientPhone && clientName) {
+        const petName = fullInvoice.appointment?.pet?.pet_name || fullInvoice.boarding_reservation?.pet?.pet_name || 'your pet'
+        const serviceName = fullInvoice.appointment?.service_type || 'Boarding Reservation'
+        
+        let confirmMsg = ''
+        if (isPartial) {
+          const paidAmount = pendingLink ? pendingLink.amount : 0
+          const formattedPaid = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paidAmount)
+          confirmMsg = `*Booking Confirmed!* 🐾\n\nHi ${clientName}, we have received your deposit of ${formattedPaid} for ${petName}'s ${serviceName} booking.\n\nYour slot is secured! See you soon. 😊`
+        } else {
+          const totalAmount = fullInvoice.total_amount
+          const formattedTotal = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalAmount)
+          confirmMsg = `*Payment Received!* 🐾\n\nHi ${clientName}, we have received your payment of ${formattedTotal} for ${petName}'s ${serviceName} booking.\n\nThank you, and we look forward to seeing you! 😊`
+        }
+
+        await sendWhatsApp(clientPhone, confirmMsg, invoice.tenantId || undefined)
+        console.log(`[PAYMENT CONFIRMATION] Sent to ${clientPhone}`)
+      }
+    } catch (whErr) {
+      console.error('[PAYMENT CONFIRMATION ERROR]:', whErr)
     }
   }
 

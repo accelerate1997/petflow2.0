@@ -36,7 +36,9 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
       ? `${invoice.discount}%`
       : fmt(invoice.discount, currCode)
 
-    const speciesEmoji: Record<string, string> = { dog: '🐕', cat: '🐈', other: '🐾' }
+    const paidLinks = invoice.payment_links?.filter((l: any) => l.status === 'paid') || []
+    const totalPaid = paidLinks.reduce((sum: number, l: any) => sum + l.amount, 0)
+    const remainingBalance = Math.max(0, invoice.total_amount - totalPaid)
 
     return (
       <>
@@ -253,11 +255,43 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                 <span style={{ fontSize: '1rem', fontWeight: 700 }}>Total Amount</span>
                 <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1e293b' }}>{fmt(invoice.total_amount, currCode)}</span>
               </div>
-              <div style={{ marginTop: '16px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', textAlign: 'right' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', margin: 0, textTransform: 'uppercase' }}>
-                  Paid via {invoice.payment_method}
-                </p>
-              </div>
+              {invoice.status === 'Partially Paid' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.9rem', color: '#166534' }}>
+                    <span>Deposit Paid</span>
+                    <span>{fmt(totalPaid, currCode)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.9rem', color: '#b91c1c', fontWeight: 700 }}>
+                    <span>Remaining Balance</span>
+                    <span>{fmt(remainingBalance, currCode)}</span>
+                  </div>
+                </>
+              )}
+              {invoice.status === 'Partially Paid' ? (
+                <div style={{ marginTop: '16px', padding: '10px 14px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', margin: 0, textTransform: 'uppercase' }}>
+                    Partially Paid via {invoice.payment_method}
+                  </p>
+                </div>
+              ) : invoice.status === 'Unpaid' ? (
+                <div style={{ marginTop: '16px', padding: '10px 14px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '8px', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#991b1b', margin: 0, textTransform: 'uppercase' }}>
+                    Unpaid
+                  </p>
+                </div>
+              ) : invoice.status === 'Refunded' ? (
+                <div style={{ marginTop: '16px', padding: '10px 14px', background: '#f3e8ff', border: '1px solid #e9d5ff', borderRadius: '8px', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b21a8', margin: 0, textTransform: 'uppercase' }}>
+                    Refunded
+                  </p>
+                </div>
+              ) : (
+                <div style={{ marginTop: '16px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '8px', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', margin: 0, textTransform: 'uppercase' }}>
+                    Paid via {invoice.payment_method}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
