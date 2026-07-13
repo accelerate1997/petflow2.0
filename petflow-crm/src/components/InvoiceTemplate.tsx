@@ -25,12 +25,14 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
     const spa = spaSettings || { spa_name: 'PetFlow Spa', spa_address: null, spa_whatsapp: null, spa_email: null, currency_symbol: '₹', currency_code: 'INR', tax_label: 'Tax' }
     const currCode = spa.currency_code || 'INR'
     
+    if (!invoice) return null
+
     // Extract info based on if it's an appointment, boarding stay, or direct sale
     const appt = invoice.appointment
     const boarding = invoice.boarding_reservation
-    const client = invoice.client || appt?.pet.owner || boarding?.pet.owner
+    const client = invoice.client || appt?.pet?.owner || boarding?.pet?.owner
     const ownerName = client?.name || 'Walk-in Customer'
-    const petName = appt?.pet.pet_name || boarding?.pet.pet_name
+    const petName = appt?.pet?.pet_name || boarding?.pet?.pet_name
     
     const discountDisplay = invoice.discount_type === 'percent'
       ? `${invoice.discount}%`
