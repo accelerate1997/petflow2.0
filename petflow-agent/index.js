@@ -152,7 +152,7 @@ function isDuplicate(id) {
 // ─── Recent Webhook Debug Log ─────────────────────────────────────────────────
 const recentWebhooks = [];
 
-// ─── Health Check (Protected) ─────────────────────────────────────────────────
+// ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
     res.json({
         status:         'PETRO_ALIVE',
@@ -161,6 +161,13 @@ app.get('/health', (req, res) => {
         activeSessions: getActiveSessions().length,
         uptime:         process.uptime().toFixed(0) + 's'
     });
+});
+
+// ─── Debug: Recent Webhooks ────────────────────────────────────────────────────
+app.get('/debug/recent', (req, res) => {
+    const key = req.headers['apikey'] || req.headers['x-api-key'] || req.query.apikey;
+    if (API_KEY && key !== API_KEY) return res.status(401).json({ error: 'Unauthorized' });
+    res.json({ recentWebhooks, activeSessions: getActiveSessions() });
 });
 
 // ─── Webhook (Protected) ──────────────────────────────────────────────────────
@@ -413,16 +420,23 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
                 const consentMsg = consentService.buildConsentMessage(spaName);
 
                 // Save the consent-ask as a chat session message so isPending works
+                // Resolve tenantId for this new session
+                const waConfigForTenant = await prisma.whatsAppConfig.findFirst({
+                    where: { instance_name: INSTANCE_NAME }
+                });
+                const consentTenantId = waConfigForTenant?.tenantId || 'default-tenant-id';
+
                 const session = await prisma.chatSession.upsert({
                     where: { phone },
-                    update: { updated: new Date() },
-                    create: { phone, channel: isTwilio ? 'twilio' : 'whatsapp' }
+                    update: { updated: new Date(), tenantId: consentTenantId },
+                    create: { phone, channel: isTwilio ? 'twilio' : 'whatsapp', tenantId: consentTenantId }
                 });
                 await prisma.chatMessage.create({
                     data: { session_id: session.id, role: 'assistant', content: consentMsg }
                 });
 
-                await sendReply(remoteJid, consentMsg);
+                const sendResult = await sendReply(remoteJid, consentMsg);
+                console.log(`[CONSENT SEND] Reply to ${phone}: ${sendResult ? '✅ sent' : '❌ FAILED'}`);
                 return;
             }
         }
@@ -443,8 +457,11 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
             }
         });
         if (reply) {
-            console.log(`💬 Luna → ${phone}: ${reply.substring(0, 80)}...`);
-            await sendReply(remoteJid, reply);
+            console.log(`💬 Petro → ${phone}: ${reply.substring(0, 80)}...`);
+            const sendOk = await sendReply(remoteJid, reply);
+            if (!sendOk) {
+                console.error(`❌ [SEND FAILED] Could not deliver reply to ${phone} via ${isTwilio ? 'Twilio' : 'Evolution'}`);
+            }
         } else {
             console.log(`👤 [MANUAL MODE] Saved incoming message for ${phone}. AI response skipped.`);
         }
