@@ -83,7 +83,9 @@ export async function previewPetroChat(
       ...config,
       tenantId,
     }
-    const res = await fetch('http://127.0.0.1:3002/api/petro-config/chat-preview', {
+    const agentBase = process.env.AGENT_PUBLIC_URL || 'http://127.0.0.1:3002';
+    const cleanBase = agentBase.replace(/\/$/, '');
+    const res = await fetch(`${cleanBase}/api/petro-config/chat-preview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
