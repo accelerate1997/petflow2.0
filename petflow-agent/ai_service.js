@@ -1015,8 +1015,6 @@ async function saveMessage(sessionId, role, content, tool_call_id = null, name =
                 content: typeof content === 'string' ? content : JSON.stringify(content),
                 tool_call_id,
                 name,
-                // Store the tool_calls array as JSON so history can be faithfully reconstructed
-                ...(tool_calls ? { tool_calls: JSON.stringify(tool_calls) } : {}),
             }
         });
         // Update session's last_message and updated timestamp
