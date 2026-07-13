@@ -20,6 +20,7 @@ const { initAutomation } = require('./automation_service');
 const rateLimit = require('express-rate-limit');
 
 const app  = express();
+app.set('trust proxy', 1); // Trust Coolify/Traefik reverse proxy for correct IP detection
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
