@@ -83,7 +83,7 @@ export async function previewPetroChat(
       ...config,
       tenantId,
     }
-    const res = await fetch('http://localhost:3002/api/petro-config/chat-preview', {
+    const res = await fetch('http://127.0.0.1:3002/api/petro-config/chat-preview', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
