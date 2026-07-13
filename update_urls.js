@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const agentUrl = 'https://hotmw-2401-4900-57e9-be39-ec68-1753-d7fd-cb95.run.pinggy-free.link';
+const agentUrl = 'https://lsqzm-2401-4900-57fb-f136-a960-800-ec99-904b.run.pinggy-free.link';
 
 // Update Agent .env
 const agentEnvPath = path.join('c:', 'Users', 'jasha', 'OneDrive', 'Desktop', 'Pet flow', 'petflow-agent', '.env');

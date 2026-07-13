@@ -165,6 +165,7 @@ app.get('/health', (req, res) => {
 
 // ─── Webhook (Protected) ──────────────────────────────────────────────────────
 app.post('/webhook', webhookLimiter, async (req, res) => {
+    const isTwilio = !!(req.body.From || req.body.AccountSid);
     const requestApiKey = req.headers['apikey'] || req.headers['x-api-key'] || req.query.apikey;
     const localApiKey = process.env.EVOLUTION_API_KEY;
     const petflowApiKey = process.env.PETFLOW_API_KEY;
@@ -172,15 +173,13 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
     const hasExpectedKeys = !!(localApiKey || petflowApiKey);
     const matchesAnyKey = (localApiKey && requestApiKey === localApiKey) || (petflowApiKey && requestApiKey === petflowApiKey);
 
-    if (hasExpectedKeys && !matchesAnyKey) {
+    if (!isTwilio && hasExpectedKeys && !matchesAnyKey) {
         console.warn(`[WEBHOOK] Unauthorized connection attempt. Invalid apikey.`);
         return res.status(401).json({ error: 'Unauthorized: Invalid apikey header' });
     }
 
     try {
         let text, phone, remoteJid, msgId;
-
-        const isTwilio = !!(req.body.From || req.body.AccountSid);
 
         if (isTwilio) {
             msgId = req.body.MessageSid;
