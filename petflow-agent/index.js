@@ -304,10 +304,10 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
         }
 
         if (!text || !phone || !remoteJid) {
-            return res.sendStatus(200);
+            return res.status(200).end();
         }
 
-        res.sendStatus(200);
+        res.status(200).end();
 
         if (checkBotLoop(phone)) {
             console.warn(`⚠️ [SAFETY TRIGGER] Bot loop detected for phone ${phone}. Suppressing AI response.`);
