@@ -27,7 +27,8 @@ import {
   getSegmentedClientsCount,
   broadcastCampaign,
   SegmentFilters,
-  getPresignedUploadUrl
+  getPresignedUploadUrl,
+  getWhatsAppTemplates
 } from '@/lib/actions'
 
 interface CompressedResult {
@@ -110,6 +111,11 @@ export default function MarketingPage() {
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null)
   const [campaignProgress, setCampaignProgress] = useState<{ sent: number; failed: number; total: number } | null>(null)
 
+  // WhatsApp template states
+  const [approvedTemplates, setApprovedTemplates] = useState<any[]>([])
+  const [selectedTemplateSid, setSelectedTemplateSid] = useState<string>('')
+  const [isTemplateCampaign, setIsTemplateCampaign] = useState(false)
+
   // Media upload states
   const [mediaMode, setMediaMode] = useState<'upload' | 'url'>('upload')
   const [compressingMedia, setCompressingMedia] = useState(false)
@@ -135,7 +141,17 @@ export default function MarketingPage() {
   // Fetch campaigns and update reach initially
   useEffect(() => {
     loadCampaigns()
+    loadTemplates()
   }, [])
+
+  const loadTemplates = async () => {
+    try {
+      const data = await getWhatsAppTemplates()
+      setApprovedTemplates(data.filter((t: any) => t.status === 'Approved'))
+    } catch (e) {
+      console.error('Failed to load templates:', e)
+    }
+  }
 
   // Recalculate estimated reach when filters change
   useEffect(() => {
@@ -197,6 +213,7 @@ export default function MarketingPage() {
 
   const handleCreateAndSend = async () => {
     if (!name.trim()) return alert('Please enter a campaign name')
+    if (isTemplateCampaign && !selectedTemplateSid) return alert('Please select an approved WhatsApp template')
     if (!message.trim()) return alert('Please write a campaign message')
     if (reachCount === 0) return alert('No clients match your filter criteria')
 
@@ -209,7 +226,7 @@ export default function MarketingPage() {
       let finalMediaUrl = mediaUrl || undefined
 
       // If mediaMode is upload and there is a mediaFile, upload it to R2 first
-      if (mediaMode === 'upload' && mediaFile) {
+      if (!isTemplateCampaign && mediaMode === 'upload' && mediaFile) {
         const { uploadUrl, publicUrl } = await getPresignedUploadUrl(
           'flyer.jpg',
           'image/jpeg',
@@ -233,7 +250,8 @@ export default function MarketingPage() {
       const campaign = await createCampaign({
         name,
         message,
-        mediaUrl: finalMediaUrl,
+        mediaUrl: isTemplateCampaign ? undefined : finalMediaUrl,
+        templateSid: isTemplateCampaign ? selectedTemplateSid : undefined,
         segmentFilters: filters
       })
 
@@ -461,129 +479,211 @@ export default function MarketingPage() {
                 />
               </div>
 
-              {/* Campaign Media */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <ImageIcon size={14} className="text-sage" /> Campaign Media (Optional)
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMediaMode('upload')
-                        setMediaUrl('')
-                        setMediaFile(null)
-                      }}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${
-                        mediaMode === 'upload'
-                          ? 'bg-sage/10 text-sage-dark'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      Upload File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMediaMode('url')
-                        setMediaUrl('')
-                        setMediaFile(null)
-                      }}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${
-                        mediaMode === 'url'
-                          ? 'bg-sage/10 text-sage-dark'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      Web Link
-                    </button>
-                  </div>
+              {/* Campaign Delivery Mode Selector */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Campaign Delivery Mode</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTemplateCampaign(false)
+                      setSelectedTemplateSid('')
+                      setMessage('')
+                    }}
+                    className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
+                      !isTemplateCampaign
+                        ? 'bg-sage/10 text-sage-dark border-sage/30'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    Free-form Message
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTemplateCampaign(true)
+                      if (approvedTemplates.length > 0) {
+                        const first = approvedTemplates[0]
+                        setSelectedTemplateSid(first.contentSid)
+                        setMessage(first.body)
+                      } else {
+                        setSelectedTemplateSid('')
+                        setMessage('')
+                      }
+                    }}
+                    className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
+                      isTemplateCampaign
+                        ? 'bg-sage/10 text-sage-dark border-sage/30'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    WhatsApp Template
+                  </button>
                 </div>
+              </div>
 
-                {mediaMode === 'upload' ? (
-                  <div className="space-y-2">
-                    {mediaUrl ? (
-                      <div className="relative border border-dashed border-gray-200 rounded-xl p-3 bg-gray-50/50 flex items-center justify-between gap-3 group">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-gray-100 border overflow-hidden relative flex items-center justify-center flex-shrink-0">
-                            <img src={mediaUrl} alt="Uploaded media preview" className="w-full h-full object-cover" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-gray-700">Flyer Image Loaded</p>
-                            <p className="text-[10px] font-medium text-gray-400">Compressed · JPG format</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMediaUrl('')
-                            setMediaFile(null)
-                          }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center"
-                          title="Remove media file"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`border-2 border-dashed border-gray-200 hover:border-sage hover:bg-sage-muted/5 rounded-xl p-6 text-center cursor-pointer transition-all ${
-                          compressingMedia ? 'opacity-50 pointer-events-none' : ''
+              {/* Template Selector dropdown */}
+              {isTemplateCampaign && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select WhatsApp Template</label>
+                  {approvedTemplates.length === 0 ? (
+                    <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                      No approved WhatsApp templates found. Please submit and approve templates in Settings first.
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full p-2.5 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white text-sm outline-none transition-all"
+                      value={selectedTemplateSid}
+                      onChange={(e) => {
+                        const sid = e.target.value
+                        setSelectedTemplateSid(sid)
+                        const found = approvedTemplates.find(t => t.contentSid === sid)
+                        if (found) {
+                          setMessage(found.body)
+                        }
+                      }}
+                    >
+                      <option value="">-- Choose Approved Template --</option>
+                      {approvedTemplates.map(t => (
+                        <option key={t.id} value={t.contentSid}>
+                          {t.name} ({t.category})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Campaign Media */}
+              {!isTemplateCampaign && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-sage" /> Campaign Media (Optional)
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaMode('upload')
+                          setMediaUrl('')
+                          setMediaFile(null)
+                        }}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${
+                          mediaMode === 'upload'
+                            ? 'bg-sage/10 text-sage-dark'
+                            : 'text-gray-400 hover:text-gray-600'
                         }`}
                       >
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          accept="image/*"
-                          onChange={handleMediaUpload}
-                          className="hidden"
-                        />
-                        {compressingMedia ? (
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Loader2 className="animate-spin text-sage" size={24} />
-                            <p className="text-xs font-bold text-gray-500">Compressing Image...</p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center gap-1.5">
-                            <Upload className="text-gray-400" size={22} />
-                            <p className="text-xs font-bold text-gray-600">Click to Upload Image Flyer</p>
-                            <p className="text-[10px] font-medium text-gray-400">Supports JPG, PNG (automatically resized & optimized)</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaMode('url')
+                          setMediaUrl('')
+                          setMediaFile(null)
+                        }}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${
+                          mediaMode === 'url'
+                            ? 'bg-sage/10 text-sage-dark'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        Web Link
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-400">
-                      <LinkIcon size={14} />
-                    </span>
-                    <input
-                      type="url"
-                      placeholder="https://example.com/flyer.png"
-                      value={mediaUrl}
-                      onChange={(e) => setMediaUrl(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white text-sm outline-none transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+
+                  {mediaMode === 'upload' ? (
+                    <div className="space-y-2">
+                      {mediaUrl ? (
+                        <div className="relative border border-dashed border-gray-200 rounded-xl p-3 bg-gray-50/50 flex items-center justify-between gap-3 group">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-gray-100 border overflow-hidden relative flex items-center justify-center flex-shrink-0">
+                              <img src={mediaUrl} alt="Uploaded media preview" className="w-full h-full object-cover" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-700">Flyer Image Loaded</p>
+                              <p className="text-[10px] font-medium text-gray-400">Compressed · JPG format</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaUrl('')
+                              setMediaFile(null)
+                            }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center"
+                            title="Remove media file"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          className={`border-2 border-dashed border-gray-200 hover:border-sage hover:bg-sage-muted/5 rounded-xl p-6 text-center cursor-pointer transition-all ${
+                            compressingMedia ? 'opacity-50 pointer-events-none' : ''
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            onChange={handleMediaUpload}
+                            className="hidden"
+                          />
+                          {compressingMedia ? (
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <Loader2 className="animate-spin text-sage" size={24} />
+                              <p className="text-xs font-bold text-gray-500">Compressing Image...</p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1.5">
+                              <Upload className="text-gray-400" size={22} />
+                              <p className="text-xs font-bold text-gray-600">Click to Upload Image Flyer</p>
+                              <p className="text-[10px] font-medium text-gray-400">Supports JPG, PNG (automatically resized & optimized)</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400">
+                        <LinkIcon size={14} />
+                      </span>
+                      <input
+                        type="url"
+                        placeholder="https://example.com/flyer.png"
+                        value={mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white text-sm outline-none transition-all"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Message Composer */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Message</label>
-                  <span className="text-[0.65rem] text-gray-400 font-semibold">
-                    Merge Tags: <code className="bg-gray-100 px-1 py-0.5 rounded text-sage-dark">{'{name}'}</code> <code className="bg-gray-100 px-1 py-0.5 rounded text-sage-dark">{'{pet_name}'}</code>
-                  </span>
+                  {!isTemplateCampaign && (
+                    <span className="text-[0.65rem] text-gray-400 font-semibold">
+                      Merge Tags: <code className="bg-gray-100 px-1 py-0.5 rounded text-sage-dark">{'{name}'}</code> <code className="bg-gray-100 px-1 py-0.5 rounded text-sage-dark">{'{pet_name}'}</code>
+                    </span>
+                  )}
                 </div>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Hi {name}, treat your dog {pet_name} to our Special De-shedding Session this weekend and get 15% off! 🐾"
-                  className="w-full h-32 p-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white text-sm outline-none transition-all resize-none"
+                  readOnly={isTemplateCampaign}
+                  placeholder={isTemplateCampaign ? "Please choose an approved template above..." : "Hi {name}, treat your dog {pet_name} to our Special De-shedding Session this weekend and get 15% off! 🐾"}
+                  className={`w-full h-32 p-3 rounded-lg border border-gray-200 text-sm outline-none transition-all resize-none ${
+                    isTemplateCampaign ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white text-gray-900'
+                  }`}
                 />
               </div>
 

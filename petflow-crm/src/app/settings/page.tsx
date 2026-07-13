@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck, Cpu } from 'lucide-react'
+import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck, Cpu, FileText } from 'lucide-react'
 import type { Settings, BusinessHours, Van } from '@/types'
+import TemplatesTab from '@/components/TemplatesTab'
 
 const Instagram = (props: any) => (
   <svg
@@ -102,7 +103,7 @@ const CURRENCIES = [
 ]
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'vans' | 'whatsapp' | 'ai' | 'payments' | 'integrations' | 'account'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'vans' | 'whatsapp' | 'templates' | 'ai' | 'payments' | 'integrations' | 'account'>('profile')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -922,6 +923,7 @@ export default function SettingsPage() {
           { id: 'system',       label: 'System',         icon: SettingsIcon },
           ...(settings?.mobile_enabled ? [{ id: 'vans', label: 'Grooming Vans', icon: Truck }] : []),
           { id: 'whatsapp',     label: 'WhatsApp',       icon: MessageSquare },
+          { id: 'templates',    label: 'WhatsApp Templates', icon: FileText },
           { id: 'ai',           label: 'AI Model',       icon: Cpu },
           { id: 'payments',     label: 'Payments',       icon: CreditCard },
           { id: 'integrations', label: 'Integrations',   icon: Zap },
@@ -1747,6 +1749,12 @@ export default function SettingsPage() {
                 )}
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'templates' && (
+          <div className="card p-8">
+            <TemplatesTab />
           </div>
         )}
 

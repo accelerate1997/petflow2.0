@@ -2,7 +2,7 @@
 
 import { prisma } from './prisma'
 import { revalidatePath, unstable_noStore as noStore } from 'next/cache'
-import { sendWhatsApp, sendWhatsAppMedia } from './whatsapp'
+import { sendWhatsApp, sendWhatsAppMedia, sendWhatsAppTemplate } from './whatsapp'
 import type { Pet, Appointment, Invoice } from '@/types'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -2255,13 +2255,14 @@ export async function getCampaigns() {
   })
 }
 
-export async function createCampaign(data: { name: string; message: string; mediaUrl?: string; segmentFilters: any }) {
+export async function createCampaign(data: { name: string; message: string; mediaUrl?: string; templateSid?: string; segmentFilters: any }) {
   const tenantId = await getCurrentTenantId()
   const campaign = await prisma.campaign.create({
     data: {
       name: data.name,
       message: data.message,
       mediaUrl: data.mediaUrl || null,
+      templateSid: data.templateSid || null,
       segmentFilters: data.segmentFilters,
       status: 'Draft',
       tenantId
@@ -2410,7 +2411,13 @@ export async function broadcastCampaign(campaignId: string) {
 
     try {
       let res;
-      if (campaign.mediaUrl) {
+      if (campaign.templateSid) {
+        const variables = {
+          "1": client.name,
+          "2": client.pets[0]?.pet_name || 'your pet'
+        };
+        res = await sendWhatsAppTemplate(client.whatsapp_number, campaign.templateSid, variables);
+      } else if (campaign.mediaUrl) {
         res = await sendWhatsAppMedia(client.whatsapp_number, campaign.mediaUrl, personalizedMsg);
       } else {
         res = await sendWhatsApp(client.whatsapp_number, personalizedMsg);
@@ -2955,6 +2962,160 @@ export async function deleteVan(id: string) {
   })
   revalidatePath('/settings')
   return van
+}
+
+// ─── WhatsApp Templates (Twilio Content API) ───────────────────────────────────
+
+export async function createWhatsAppTemplateAction(name: string, body: string, category: string = 'MARKETING', language: string = 'en') {
+  const tenantId = await getCurrentTenantId()
+  const user = await getCurrentUser()
+
+  // Get WhatsApp config
+  const whatsAppConfig = await prisma.whatsAppConfig.findFirst({ where: { tenantId } })
+  if (!whatsAppConfig) throw new Error('WhatsApp is not configured. Please configure it in Settings.')
+
+  const accountSid = whatsAppConfig.twilio_account_sid
+  const authToken = whatsAppConfig.twilio_auth_token ? decrypt(whatsAppConfig.twilio_auth_token) : null
+
+  if (!accountSid || !authToken) {
+    throw new Error('Twilio Account SID or Auth Token is missing. Please configure it in Settings.')
+  }
+
+  // 1. Create Template via Twilio Content API
+  const twilioUrl = `https://content.twilio.com/v1/Content`
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+
+  const createRes = await fetch(twilioUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      friendly_name: name,
+      language: language,
+      types: {
+        'twilio/text': {
+          body: body
+        }
+      }
+    })
+  })
+
+  if (!createRes.ok) {
+    const errData = await createRes.json()
+    throw new Error(`Twilio Content API Error: ${errData.message || JSON.stringify(errData)}`)
+  }
+
+  const templateData = await createRes.json()
+  const contentSid = templateData.sid
+
+  // 2. Submit for WhatsApp approval
+  const approveUrl = `https://content.twilio.com/v1/Content/${contentSid}/ApprovalRequests/whatsapp`
+  const approveRes = await fetch(approveUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: name,
+      category: category
+    })
+  })
+
+  if (!approveRes.ok) {
+    // If approval submission fails, still create in DB but log error
+    console.error('Failed to submit template to WhatsApp approval:', await approveRes.text())
+  }
+
+  // Save template record in database
+  const template = await prisma.whatsAppTemplate.create({
+    data: {
+      tenantId,
+      name,
+      body,
+      category,
+      language,
+      status: 'Pending',
+      contentSid
+    }
+  })
+
+  revalidatePath('/settings')
+  return template
+}
+
+export async function getWhatsAppTemplates() {
+  const tenantId = await getCurrentTenantId()
+  return await prisma.whatsAppTemplate.findMany({
+    where: { tenantId },
+    orderBy: { created: 'desc' }
+  })
+}
+
+export async function deleteWhatsAppTemplateAction(id: string) {
+  const tenantId = await getCurrentTenantId()
+  const template = await prisma.whatsAppTemplate.findFirst({ where: { id, tenantId } })
+  if (!template) throw new Error('Template not found')
+
+  await prisma.whatsAppTemplate.delete({ where: { id } })
+  revalidatePath('/settings')
+  return { success: true }
+}
+
+export async function syncWhatsAppTemplatesAction() {
+  const tenantId = await getCurrentTenantId()
+
+  const whatsAppConfig = await prisma.whatsAppConfig.findFirst({ where: { tenantId } })
+  if (!whatsAppConfig) throw new Error('WhatsApp is not configured.')
+
+  const accountSid = whatsAppConfig.twilio_account_sid
+  const authToken = whatsAppConfig.twilio_auth_token ? decrypt(whatsAppConfig.twilio_auth_token) : null
+
+  if (!accountSid || !authToken) return { updatedCount: 0 }
+
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+
+  const pendingTemplates = await prisma.whatsAppTemplate.findMany({
+    where: { tenantId, status: 'Pending' }
+  })
+
+  let updatedCount = 0
+
+  for (const template of pendingTemplates) {
+    try {
+      const url = `https://content.twilio.com/v1/Content/${template.contentSid}`
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Basic ${auth}` }
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const twilioStatus = data.approval_requests?.status || 'Pending'
+        
+        let localStatus = 'Pending'
+        if (twilioStatus === 'approved') {
+          localStatus = 'Approved'
+        } else if (twilioStatus === 'rejected') {
+          localStatus = 'Rejected'
+        }
+
+        if (localStatus !== template.status) {
+          await prisma.whatsAppTemplate.update({
+            where: { id: template.id },
+            data: { status: localStatus }
+          })
+          updatedCount++
+        }
+      }
+    } catch (e) {
+      console.error(`Failed to sync template status for ${template.contentSid}:`, e)
+    }
+  }
+
+  revalidatePath('/settings')
+  return { updatedCount }
 }
 
 

@@ -38,6 +38,7 @@ model Tenant {
   webhook_endpoints WebhookEndpoint[]
   vans            Van[]
   audit_logs      AuditLog[]
+  whatsapp_templates WhatsAppTemplate[]
 }
 
 model Client {
@@ -335,6 +336,7 @@ model Campaign {
   status         String        @default("Draft") // "Draft" | "Sending" | "Completed" | "Failed"
   sentCount      Int           @default(0)
   failedCount    Int           @default(0)
+  templateSid    String?
   created        DateTime      @default(now())
   updated        DateTime      @updatedAt
   logs           CampaignLog[]
@@ -590,6 +592,20 @@ model AuditLog {
   metadata    Json?    // Additional context (e.g. { "client_count": 50 } for bulk campaigns)
   ip_address  String?
   created     DateTime @default(now())
+}
+
+model WhatsAppTemplate {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  name       String   // Friendly name
+  body       String   @db.Text
+  language   String   @default("en")
+  category   String   @default("MARKETING") // "MARKETING" | "UTILITY"
+  status     String   @default("Pending")   // "Pending" | "Approved" | "Rejected"
+  contentSid String   @unique               // Twilio Content SID (starts with HX)
+  created    DateTime @default(now())
+  updated    DateTime @updatedAt
 }
 
 

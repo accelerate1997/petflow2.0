@@ -275,3 +275,62 @@ export async function sendWhatsAppMedia(number: string, media: string, caption?:
     return null;
   }
 }
+
+export async function sendWhatsAppTemplate(
+  number: string,
+  contentSid: string,
+  variables: Record<string, string>,
+  tenantId?: string
+) {
+  const config = await getWhatsAppConfig(tenantId);
+  const accountSid = config.twilio_account_sid;
+  const authToken = config.twilio_auth_token;
+  const fromNumber = config.twilio_phone_number;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    console.warn('Twilio: Missing configuration (Account SID, Auth Token, or Phone Number). Skipping template message.');
+    return null;
+  }
+
+  const cleanNumber = number.replace(/\D/g, '');
+  let formattedTo = cleanNumber;
+  let formattedFrom = fromNumber;
+
+  if (!formattedFrom.startsWith('whatsapp:')) {
+    formattedFrom = formattedFrom.startsWith('+') ? `whatsapp:${formattedFrom}` : `whatsapp:+${formattedFrom}`;
+  }
+  if (!formattedTo.startsWith('whatsapp:')) {
+    formattedTo = `whatsapp:+${formattedTo}`;
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+
+  try {
+    const params = new URLSearchParams();
+    params.append('To', formattedTo);
+    params.append('From', formattedFrom);
+    params.append('ContentSid', contentSid);
+    params.append('ContentVariables', JSON.stringify(variables));
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      console.error('Twilio Send Template Error:', result);
+      return null;
+    }
+    console.log(`Twilio Template Message Sent to ${formattedTo} [SID: ${result.sid}]`);
+    return result;
+  } catch (error) {
+    console.error('Twilio Send Template Exception:', error);
+    return null;
+  }
+}
