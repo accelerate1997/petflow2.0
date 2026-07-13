@@ -3,9 +3,36 @@ const crypto = require('crypto');
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 
+/**
+ * Gets a derived 32-byte key buffer from the ENCRYPTION_SECRET environment variable.
+ * Throws if the secret is not configured — never falls back to a hardcoded key.
+ */
 function getEncryptionKey() {
-    const secret = process.env.ENCRYPTION_SECRET || 'fallback-secret-key-32-chars-long!!';
+    const secret = process.env.ENCRYPTION_SECRET;
+    if (!secret) {
+        throw new Error(
+            '[SECURITY] ENCRYPTION_SECRET environment variable is not set. ' +
+            'This is required to encrypt/decrypt sensitive data. ' +
+            'Generate a strong random secret (e.g. openssl rand -hex 32) and set it in your .env file.'
+        );
+    }
     return crypto.createHash('sha256').update(secret).digest();
+}
+
+function encrypt(text) {
+    if (!text) return null;
+    try {
+        const key = getEncryptionKey();
+        const iv = crypto.randomBytes(IV_LENGTH);
+        const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+        let encrypted = cipher.update(text, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        const authTag = cipher.getAuthTag().toString('hex');
+        return `${iv.toString('hex')}:${encrypted}:${authTag}`;
+    } catch (error) {
+        console.error('[Encryption error] Failed to encrypt:', error.message);
+        throw error; // Never silently fail on encryption
+    }
 }
 
 function decrypt(encryptedText) {
@@ -41,4 +68,5 @@ function decrypt(encryptedText) {
     }
 }
 
-module.exports = { decrypt };
+module.exports = { encrypt, decrypt };
+

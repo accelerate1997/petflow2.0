@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, User } from 'lucide-react'
+import { X, User, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/actions'
 
 interface Props {
@@ -18,12 +18,16 @@ export default function AddClientModal({ onClose, onSuccess, currencySymbol = '�
     address: '',
     total_spend: '',
   })
+  // ─── Consent Fields (GDPR / DPDP walk-in compliance) ─────────────────────
+  const [consentGiven, setConsentGiven] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim()) { setError('Name is required'); return }
+    if (!consentGiven) { setError('Client consent is required before adding their data.'); return }
     setLoading(true)
     setError('')
     try {
@@ -33,6 +37,11 @@ export default function AddClientModal({ onClose, onSuccess, currencySymbol = '�
         email: form.email || null,
         address: form.address || null,
         total_spend: form.total_spend ? parseFloat(form.total_spend) : 0,
+        // Compliance fields
+        consent_given: true,
+        consent_date: new Date(),
+        consent_channel: 'manual', // staff added walk-in
+        marketing_opt_in: marketingOptIn,
       })
       onSuccess()
       onClose()
@@ -41,7 +50,6 @@ export default function AddClientModal({ onClose, onSuccess, currencySymbol = '�
     }
     setLoading(false)
   }
-
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -98,9 +106,59 @@ export default function AddClientModal({ onClose, onSuccess, currencySymbol = '�
             <input className="input-field" type="number" placeholder="0" value={form.total_spend} onChange={e => setForm({ ...form, total_spend: e.target.value })} />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          {/* ─── GDPR / DPDP Consent Section ─────────────────────────────────── */}
+          <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck size={15} style={{ color: '#16a34a' }} />
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#15803d' }}>Privacy Consent (Required)</span>
+            </div>
+
+            {/* Consent checkbox — REQUIRED */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                id="consent-checkbox"
+                type="checkbox"
+                checked={consentGiven}
+                onChange={e => setConsentGiven(e.target.checked)}
+                className="mt-0.5 accent-green-600"
+                style={{ width: 16, height: 16, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: '0.78rem', color: '#374151', lineHeight: 1.5 }}>
+                <strong>Client has verbally consented</strong> to their name, phone, and pet data
+                being stored for appointment management and service history.{' '}
+                <span style={{ color: '#dc2626' }}>*</span>
+              </span>
+            </label>
+
+            {/* Marketing opt-in — OPTIONAL */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                id="marketing-checkbox"
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={e => setMarketingOptIn(e.target.checked)}
+                className="mt-0.5 accent-green-600"
+                style={{ width: 16, height: 16, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: '0.78rem', color: '#374151', lineHeight: 1.5 }}>
+                Client also consents to receive <strong>promotional messages</strong> and
+                offers via WhatsApp. <span style={{ color: '#6b7280' }}>(Optional)</span>
+              </span>
+            </label>
+
+            <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 2 }}>
+              Consent recorded as: <em>manual (walk-in)</em> — compliant with DPDP Act, PDPL &amp; CCPA.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-1">
             <button type="button" className="btn-outline flex-1" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-sage flex-1" disabled={loading}>
+            <button
+              type="submit"
+              className="btn-sage flex-1"
+              disabled={loading || !consentGiven}
+              style={{ opacity: !consentGiven ? 0.5 : 1 }}
+            >
               {loading ? 'Saving...' : 'Add Client'}
             </button>
           </div>

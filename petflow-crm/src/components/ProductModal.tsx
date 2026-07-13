@@ -28,6 +28,7 @@ export default function ProductModal({ product, onClose, onSuccess, currencySymb
     low_stock_threshold: product?.low_stock_threshold?.toString() || '5',
     unit: product?.unit || 'pcs',
     is_active: product?.is_active ?? true,
+    inventory_type: product?.inventory_type || 'Retail',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -57,6 +58,7 @@ export default function ProductModal({ product, onClose, onSuccess, currencySymb
         low_stock_threshold: parseInt(form.low_stock_threshold) || 5,
         unit: form.unit,
         is_active: form.is_active,
+        inventory_type: form.inventory_type,
       }
       if (isEdit) {
         await updateProduct(product.id, data)
@@ -173,6 +175,35 @@ export default function ProductModal({ product, onClose, onSuccess, currencySymb
             <div>
               <label className="form-label">Low Stock Alert At</label>
               <input className="input-field" type="number" min="0" value={form.low_stock_threshold} onChange={e => set('low_stock_threshold', e.target.value)} />
+            </div>
+          </div>
+
+          {/* Inventory Type Selector */}
+          <div>
+            <label className="form-label">Inventory Type</label>
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-xl border border-gray-200/50">
+              <button
+                type="button"
+                onClick={() => set('inventory_type', 'Retail')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  form.inventory_type === 'Retail'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                🛍️ Retail Product
+              </button>
+              <button
+                type="button"
+                onClick={() => set('inventory_type', 'Spa')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  form.inventory_type === 'Spa'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                🛁 Spa Consumable / Supply
+              </button>
             </div>
           </div>
 

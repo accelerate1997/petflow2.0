@@ -8,9 +8,9 @@ const Agentation = dynamic(
   { ssr: false }
 )
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children, session }: { children: React.ReactNode; session: any }) {
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       {children}
       {process.env.NODE_ENV === 'development' && <Agentation />}
     </SessionProvider>

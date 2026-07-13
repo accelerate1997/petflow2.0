@@ -31,6 +31,13 @@ export interface Client {
   join_date: Date | string | null
   created: Date | string
   updated: Date | string
+  consent_given?: boolean
+  consent_date?: Date | string | null
+  consent_channel?: string | null
+  marketing_opt_in?: boolean
+  marketing_opt_out_at?: Date | string | null
+  deletion_requested_at?: Date | string | null
+  is_anonymized?: boolean
   pets?: Pet[]
 }
 
@@ -88,6 +95,8 @@ export interface Invoice {
   cash_amount: number | null
   upi_amount: number | null
   invoice_notes: string | null
+  status: string
+  sales?: any[]
   created: Date | string
   updated: Date | string
 }
@@ -189,6 +198,7 @@ export interface Product {
   unit: string | null
   image_url: string | null
   is_active: boolean
+  inventory_type: string
   created: Date | string
   updated: Date | string
 }
@@ -222,6 +232,7 @@ export interface ChatSession {
   is_paused: boolean
   created: Date | string
   updated: Date | string
+  retention_expires_at?: Date | string | null
   messages?: ChatMessage[]
 }
 

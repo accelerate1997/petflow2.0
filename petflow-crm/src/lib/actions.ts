@@ -48,7 +48,7 @@ export async function getProducts(opts?: string | { search?: string; category?: 
 export async function createProduct(data: {
   name: string; sku?: string; category?: string; description?: string
   retail_price: number; cost_price?: number; stock?: number; low_stock_threshold?: number
-  unit?: string; image_url?: string; is_active?: boolean
+  unit?: string; image_url?: string; is_active?: boolean; inventory_type?: string
 }) {
   const tenantId = await getCurrentTenantId()
   const product = await prisma.product.create({ data: { ...data, tenantId } })
@@ -59,7 +59,7 @@ export async function createProduct(data: {
 export async function updateProduct(id: string, data: Partial<{
   name: string; sku: string; category: string; description: string
   retail_price: number; cost_price: number; stock: number; low_stock_threshold: number
-  unit: string; image_url: string; is_active: boolean
+  unit: string; image_url: string; is_active: boolean; inventory_type: string
 }>) {
   const current = await prisma.product.findUnique({ where: { id } })
   if (!current) throw new Error('Product not found')
@@ -565,6 +565,9 @@ export async function deleteClient(id: string) {
   revalidatePath('/clients')
 }
 
+export async function getPets() {
+  const tenantId = await getCurrentTenantId()
+  return await prisma.pet.findMany({
     where: { tenantId },
     include: { owner: true, vaccinations: true },
     orderBy: { created: 'desc' }
@@ -1083,6 +1086,7 @@ export async function getWhatsAppConfig() {
     evolution_api_key: process.env.EVOLUTION_API_KEY || process.env.Evolution_api_key || '',
     instance_name: uniqueSuffix ? `${baseInstanceName}_${uniqueSuffix}` : baseInstanceName,
     openai_api_key: process.env.OPENAI_API_KEY || '',
+    openai_model: 'gpt-4o-mini',
     agent_public_url: process.env.AGENT_PUBLIC_URL || '',
     booking_link: '',
     spa_name: '',
@@ -1437,6 +1441,169 @@ export async function createInvoice(data: {
   })
 
   return invoice
+}
+
+
+export async function updateInvoice(id: string, data: {
+  subtotal: number
+  discount: number
+  discount_type: string
+  tax_rate: number
+  tax_amount: number
+  tip_amount?: number
+  total_amount: number
+  payment_method: string
+  cash_amount?: number
+  upi_amount?: number
+  invoice_notes?: string
+  status?: string
+  productSales?: { productId: string; quantity: number; price: number }[]
+}) {
+  const tenantId = await getCurrentTenantId()
+  const settings = await prisma.settings.findFirst({ where: { tenantId } })
+  const currencySymbol = settings?.currency_symbol || '₹'
+  const currencyCode = settings?.currency_code || 'INR'
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, tenantId },
+    include: { appointment: true, boarding_reservation: true }
+  })
+  if (!invoice) throw new Error('Invoice not found')
+
+  // Handle product sales updates
+  if (data.productSales && data.productSales.length > 0) {
+    // Delete old sales if any
+    await prisma.sale.deleteMany({ where: { invoice_id: id } })
+
+    // Create new sales and update inventory
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        sales: {
+          create: data.productSales.map(s => ({
+            tenantId,
+            client_id: invoice.client_id || undefined,
+            product_id: s.productId,
+            quantity: s.quantity,
+            unit_price: s.price,
+            total_price: s.price * s.quantity
+          }))
+        }
+      }
+    })
+
+    // Decrement stock & log
+    for (const s of data.productSales) {
+      const p = await prisma.product.update({
+        where: { id: s.productId },
+        data: { stock: { decrement: s.quantity } }
+      })
+
+      await prisma.stockLog.create({
+        data: {
+          product_id: s.productId,
+          quantity: -s.quantity,
+          type: 'Sale',
+          notes: `Sold in invoice update ${invoice.invoice_number}`
+        }
+      })
+
+      if (p.is_active && p.stock <= p.low_stock_threshold) {
+        if (settings?.spa_whatsapp) {
+          const message = `⚠️ *Low Stock Alert!*\n\n*${p.name}* (SKU: ${p.sku || 'N/A'}) has dropped to *${p.stock} ${p.unit || 'pcs'}* (Threshold: ${p.low_stock_threshold}).\n\nPlease restock soon!`
+          sendWhatsApp(settings.spa_whatsapp, message).catch(err => console.error('Low stock alert error:', err))
+        }
+      }
+    }
+  }
+
+  // Update the invoice main fields
+  const updatedInvoice = await prisma.invoice.update({
+    where: { id },
+    data: {
+      subtotal: data.subtotal,
+      discount: data.discount,
+      discount_type: data.discount_type,
+      tax_rate: data.tax_rate,
+      tax_amount: data.tax_amount,
+      tip_amount: data.tip_amount ?? 0,
+      total_amount: data.total_amount,
+      payment_method: data.payment_method,
+      cash_amount: data.cash_amount ?? null,
+      upi_amount: data.upi_amount ?? null,
+      invoice_notes: data.invoice_notes ?? null,
+      status: data.status || 'Paid'
+    },
+    include: { client: true, appointment: { include: { pet: { include: { owner: true } } } }, boarding_reservation: true }
+  })
+
+  // Update appointment status if applicable
+  if (invoice.appointment_id) {
+    const paymentStatus = data.status === 'Unpaid'
+      ? 'Pending'
+      : (data.payment_method === 'Cash' ? 'Cash' : data.payment_method === 'UPI' ? 'UPI' : 'Paid')
+    
+    await prisma.appointment.update({
+      where: { id: invoice.appointment_id },
+      data: { payment_status: paymentStatus, status: 'CheckOut' }
+    })
+  }
+
+  // Update boarding reservation status if applicable
+  if (invoice.boarding_reservation_id) {
+    const paymentStatus = data.status === 'Unpaid'
+      ? 'Pending'
+      : (data.payment_method === 'Cash' ? 'Cash' : data.payment_method === 'UPI' ? 'UPI' : 'Paid')
+
+    await prisma.boardingReservation.update({
+      where: { id: invoice.boarding_reservation_id },
+      data: { payment_status: paymentStatus, payment_method: data.payment_method, status: 'CheckedOut' }
+    })
+  }
+
+  // Update client spend
+  if (invoice.client_id) {
+    await prisma.client.update({
+      where: { id: invoice.client_id },
+      data: { total_spend: { increment: data.total_amount - invoice.total_amount } }
+    }).catch(() => {})
+  }
+
+  // Send WhatsApp notification
+  let clientPhone = ''
+  let clientName = 'Customer'
+  if (updatedInvoice.client) {
+    clientPhone = updatedInvoice.client.whatsapp_number || ''
+    clientName = updatedInvoice.client.name
+  } else if (updatedInvoice.appointment?.pet?.owner) {
+    clientPhone = updatedInvoice.appointment.pet.owner.whatsapp_number || ''
+    clientName = updatedInvoice.appointment.pet.owner.name
+  }
+
+  if (clientPhone) {
+    const totalStr = new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(data.total_amount)
+    const msg = `*Invoice Finalized!* 🧾\n\nHi ${clientName}, your invoice *#${updatedInvoice.invoice_number}* at *${settings?.spa_name || 'PetFlow Spa'}* has been finalized.\n\n- Total Amount: ${totalStr}\n- Status: Paid via ${data.payment_method}\n\nThank you for choosing us! Have a pawsome day! ✨`
+    sendWhatsApp(clientPhone, msg).catch(err => console.error('WhatsApp error:', err))
+  }
+
+  revalidatePath('/appointments')
+  revalidatePath('/boarding')
+  revalidatePath('/crm')
+  revalidatePath('/clients')
+  revalidatePath('/analytics')
+  revalidatePath('/billing')
+
+  // Fire webhook
+  fireWebhook('invoice.updated', tenantId, {
+    id: updatedInvoice.id,
+    invoice_number: updatedInvoice.invoice_number,
+    client_name: clientName,
+    total_amount: updatedInvoice.total_amount,
+    payment_method: updatedInvoice.payment_method,
+    status: updatedInvoice.status
+  })
+
+  return updatedInvoice
 }
 
 

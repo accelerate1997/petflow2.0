@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Receipt, Tag, Percent, IndianRupee, Printer, CheckCircle2, Loader2, AlertCircle, ShoppingBag, Plus, Minus, Trash2, Search } from 'lucide-react'
 import type { Appointment, Product, BoardingReservation } from '@/types'
-import { getProducts, createInvoice, getInvoice, getSettings, getClients } from '@/lib/actions'
-import { getPaymentConfig, createPaymentLink, sendPaymentLinkWhatsApp } from '@/lib/payment-actions'
+import { getProducts, createInvoice, getInvoice, getSettings, getClients, updateInvoice } from '@/lib/actions'
+import { getPaymentConfig, createPaymentLink, sendPaymentLinkWhatsApp, getPaymentLinks } from '@/lib/payment-actions'
 import InvoiceTemplate from './InvoiceTemplate'
 import type { Client } from '@/types'
 
@@ -42,6 +42,8 @@ export default function CheckoutModal({ appointment, boardingReservation, client
   const [linkCopied, setLinkCopied] = useState(false)
   const [waSending, setWaSending] = useState(false)
   const [waSent, setWaSent] = useState(false)
+  const [existingInvoice, setExistingInvoice] = useState<any>(null)
+  const [depositPaidAmount, setDepositPaidAmount] = useState<number>(0)
 
   // POS State
   const [allProducts, setAllProducts] = useState<Product[]>([])
@@ -60,7 +62,7 @@ export default function CheckoutModal({ appointment, boardingReservation, client
 
   useEffect(() => {
     getSettings().then(s => setSpaSettings(s))
-    getProducts().then(p => setAllProducts(p as any))
+    getProducts().then(p => setAllProducts((p as any).filter((prod: any) => prod.inventory_type !== 'Spa')))
     getPaymentConfig().then(c => {
       setPayConfig(c)
       if (c?.default_provider) {
@@ -94,6 +96,39 @@ export default function CheckoutModal({ appointment, boardingReservation, client
     }
   }, [initialClientId, allClients])
 
+  // Load existing invoice for the appointment if it exists (e.g. from deposit hold)
+  useEffect(() => {
+    if (appointment) {
+      getInvoice(appointment.id).then(inv => {
+        if (inv) {
+          setExistingInvoice(inv)
+          setDiscount(inv.discount || 0)
+          setDiscountType(inv.discount_type as 'flat' | 'percent')
+          setTaxRate(inv.tax_rate)
+          setTipAmount(inv.tip_amount || 0)
+          setInvoiceNotes(inv.invoice_notes || '')
+          if (inv.sales && inv.sales.length > 0) {
+            setSelectedProducts(inv.sales.map((s: any) => ({
+              id: s.product.id,
+              name: s.product.name,
+              price: s.unit_price,
+              quantity: s.quantity
+            })))
+          }
+
+          if (inv.status === 'Partially Paid') {
+            getPaymentLinks(inv.id).then(links => {
+              const paidLink = links.find((l: any) => l.status === 'paid')
+              if (paidLink) {
+                setDepositPaidAmount(paidLink.amount)
+              }
+            })
+          }
+        }
+      })
+    }
+  }, [appointment])
+
   // ── Calculations ──────────────────────────────────────────────
   const servicesTotal = appointment 
     ? parseFloat(appointment.price?.toString() || '0') 
@@ -112,13 +147,14 @@ export default function CheckoutModal({ appointment, boardingReservation, client
   const taxAmount = afterDiscount * taxRate / 100
   const total = afterDiscount + taxAmount + tipAmount
 
-  // Keep split amounts in sync with total
+  // Keep split amounts in sync with total (deducting any paid deposit amount)
   useEffect(() => {
-    if (paymentMethod === 'Cash') { setCashAmount(total); setUpiAmount(0) }
-    if (paymentMethod === 'UPI') { setUpiAmount(total); setCashAmount(0) }
+    const dueNow = Math.max(0, total - depositPaidAmount)
+    if (paymentMethod === 'Cash') { setCashAmount(dueNow); setUpiAmount(0) }
+    if (paymentMethod === 'UPI') { setUpiAmount(dueNow); setCashAmount(0) }
     if (paymentMethod === 'Online') { setCashAmount(0); setUpiAmount(0) }
-    if (paymentMethod === 'Split') { setCashAmount(Math.ceil(total / 2)); setUpiAmount(Math.floor(total / 2)) }
-  }, [paymentMethod, total])
+    if (paymentMethod === 'Split') { setCashAmount(Math.ceil(dueNow / 2)); setUpiAmount(Math.floor(dueNow / 2)) }
+  }, [paymentMethod, total, depositPaidAmount])
 
   const splitValid = paymentMethod !== 'Split' || Math.abs((cashAmount + upiAmount) - total) < 1
 
@@ -166,7 +202,8 @@ export default function CheckoutModal({ appointment, boardingReservation, client
     setSaving(true)
     setError('')
     try {
-      const res = await createInvoice({
+      let res
+      const invoicePayload = {
         appointment_id: appointment?.id,
         boarding_reservation_id: boardingReservation?.id,
         client_id: selectedClientId,
@@ -187,7 +224,13 @@ export default function CheckoutModal({ appointment, boardingReservation, client
           quantity: p.quantity,
           price: p.price
         }))
-      })
+      }
+
+      if (existingInvoice) {
+        res = await updateInvoice(existingInvoice.id, invoicePayload)
+      } else {
+        res = await createInvoice(invoicePayload)
+      }
       
       // Fetch the full invoice details for printing using invoice ID directly
       const inv = await getInvoice(res.id)
@@ -195,7 +238,7 @@ export default function CheckoutModal({ appointment, boardingReservation, client
       setShowPrint(true)
       onSuccess()
     } catch (e: any) {
-      setError(e.message || 'Error creating invoice')
+      setError(e.message || 'Error saving invoice')
     }
     setSaving(false)
   }
@@ -636,9 +679,20 @@ export default function CheckoutModal({ appointment, boardingReservation, client
                 )}
               </div>
 
+              {depositPaidAmount > 0 && (
+                <div className="flex justify-between items-center py-2 text-sm text-gray-500 font-semibold border-t border-dashed border-gray-100">
+                  <span>Deposit Paid (Online)</span>
+                  <span className="text-blue-600 font-bold">-{fmt(depositPaidAmount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between items-center pt-4 border-t-2 border-gray-50">
-                <span className="text-lg font-800 text-gray-800">Grand Total</span>
-                <span className="text-3xl font-900 text-sage-dark tracking-tighter">{fmt(total)}</span>
+                <span className="text-lg font-800 text-gray-800">
+                  {depositPaidAmount > 0 ? 'Remaining Balance Due' : 'Grand Total'}
+                </span>
+                <span className="text-3xl font-900 text-sage-dark tracking-tighter">
+                  {fmt(Math.max(0, total - depositPaidAmount))}
+                </span>
               </div>
             </div>
 

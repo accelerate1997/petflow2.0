@@ -8,7 +8,7 @@ export default withAuth(
     const pathname = req.nextUrl.pathname;
 
     // Routes only accessible by SpaAdmin and SuperAdmin
-    const adminOnlyRoutes = ["/staff"];
+    const adminOnlyRoutes = ["/staff", "/privacy"];
 
     const isAdminOnly = adminOnlyRoutes.some(route => pathname.startsWith(route));
     const isStaff = role === "Staff";
@@ -32,7 +32,8 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // Protect all routes, bypass API auth/health, login, register (invite), webhook, payment pages, and static assets
-    "/((?!api/health|api/auth|login|register|unauthorized|payment|_next/static|_next/image|favicon.ico|images|api/webhook).*)",
+    // Protect all routes, bypass API auth/health, login, register (invite),
+    // webhook, payment pages, privacy policy (public), and static assets
+    "/((?!api/health|api/auth|api/privacy/request|login|register|unauthorized|payment|privacy-policy|delete-my-data|_next/static|_next/image|favicon.ico|images|api/webhook).*)",
   ],
 };

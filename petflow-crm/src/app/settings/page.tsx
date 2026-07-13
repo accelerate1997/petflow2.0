@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck } from 'lucide-react'
+import { User, Clock, Globe, Save, CheckCircle2, AlertCircle, MessageSquare, RefreshCw, Wifi, QrCode, Loader2, UserCog, Lock, Mail, Settings as SettingsIcon, CreditCard, Eye, EyeOff, Copy, Check, Zap, Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Activity, Truck, Cpu } from 'lucide-react'
 import type { Settings, BusinessHours, Van } from '@/types'
 
 const Instagram = (props: any) => (
@@ -102,7 +102,7 @@ const CURRENCIES = [
 ]
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'vans' | 'whatsapp' | 'payments' | 'integrations' | 'account'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'hours' | 'system' | 'vans' | 'whatsapp' | 'ai' | 'payments' | 'integrations' | 'account'>('profile')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -153,6 +153,7 @@ export default function SettingsPage() {
     evolution_api_key: '',
     instance_name: '',
     openai_api_key: '',
+    openai_model: 'gpt-4o-mini',
     agent_public_url: '',
     booking_link: '',
     spa_name: '',
@@ -213,6 +214,10 @@ export default function SettingsPage() {
     stripe_webhook_secret: '',
     stripe_publishable_key: '',
     default_provider: 'razorpay',
+    partial_payment_enabled: false,
+    partial_payment_type: 'percent',
+    partial_payment_value: 20,
+    partial_payment_hold: 30,
   })
   const [paySaving, setPaySaving] = useState(false)
   const [payMessage, setPayMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -333,6 +338,7 @@ export default function SettingsPage() {
           instagram_page_access_token: (data as any).instagram_page_access_token || '',
           instagram_business_account_id: (data as any).instagram_business_account_id || '',
           instagram_verify_token: (data as any).instagram_verify_token || '',
+          openai_model: (data as any).openai_model || 'gpt-4o-mini',
         })
         if (data.twilio_account_sid && data.twilio_auth_token && data.twilio_phone_number) {
           setWaConnected(true)
@@ -383,6 +389,10 @@ export default function SettingsPage() {
           stripe_webhook_secret: data.stripe_webhook_secret || '',
           stripe_publishable_key: data.stripe_publishable_key || '',
           default_provider: data.default_provider,
+          partial_payment_enabled: data.partial_payment_enabled,
+          partial_payment_type: data.partial_payment_type || 'percent',
+          partial_payment_value: data.partial_payment_value ?? 20,
+          partial_payment_hold: data.partial_payment_hold ?? 30,
         })
       }
     } catch (err) {
@@ -912,6 +922,7 @@ export default function SettingsPage() {
           { id: 'system',       label: 'System',         icon: SettingsIcon },
           ...(settings?.mobile_enabled ? [{ id: 'vans', label: 'Grooming Vans', icon: Truck }] : []),
           { id: 'whatsapp',     label: 'WhatsApp',       icon: MessageSquare },
+          { id: 'ai',           label: 'AI Model',       icon: Cpu },
           { id: 'payments',     label: 'Payments',       icon: CreditCard },
           { id: 'integrations', label: 'Integrations',   icon: Zap },
           { id: 'account',      label: 'My Account',     icon: UserCog },
@@ -932,7 +943,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab Content */}
-      <div className={activeTab === 'whatsapp' ? '' : 'card p-8'}>
+      <div className={(activeTab === 'whatsapp' || activeTab === 'ai') ? '' : 'card p-8'}>
         {activeTab === 'profile' && settings && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="col-span-full mb-2">
@@ -1504,16 +1515,6 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">OpenAI API Key</label>
-                    <input
-                      type="password"
-                      className="input-field text-sm"
-                      placeholder="sk-..."
-                      value={waConfig.openai_api_key}
-                      onChange={e => setWaConfig({ ...waConfig, openai_api_key: e.target.value })}
-                    />
-                  </div>
-                  <div>
                     <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Agent Public URL</label>
                     <input
                       className="input-field text-sm font-mono"
@@ -1835,6 +1836,227 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === 'ai' && (() => {
+          const PREDEFINED_MODELS = [
+            'gpt-4o-mini',
+            'gpt-4o',
+            'gpt-4-turbo',
+            'o3-mini',
+            'o1',
+            'openai/gpt-4o-mini',
+            'openai/gpt-4o',
+            'google/gemini-2.5-flash',
+            'google/gemini-2.5-pro',
+            'anthropic/claude-3.5-sonnet',
+            'deepseek/deepseek-chat',
+            'deepseek/deepseek-reasoner',
+            'meta-llama/llama-3.3-70b-instruct'
+          ];
+          const isPredefined = PREDEFINED_MODELS.includes(waConfig.openai_model);
+          const dropdownValue = isPredefined ? waConfig.openai_model : 'custom';
+          return (
+            <div className="flex flex-col gap-6">
+              {waMessage && (
+                <div 
+                  className={`p-4 rounded-xl flex items-center gap-3 border ${
+                    waMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
+                  }`}
+                >
+                  {waMessage.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                  <p className="text-sm font-500">{waMessage.text}</p>
+                </div>
+              )}
+
+              <div className="card p-6">
+                <div className="flex items-start gap-4 mb-6 border-b border-gray-100 pb-4">
+                  <div className="flex items-center justify-center flex-shrink-0" style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(137,168,148,0.1)', border: '1px solid rgba(137,168,148,0.2)' }}>
+                    <Cpu size={22} className="text-sage-dark" />
+                  </div>
+                  <div>
+                    <h3 className="text-md font-700" style={{ fontWeight: 700, margin: 0 }}>AI Language Model Settings</h3>
+                    <p className="text-xs text-gray-400">Configure the API connection and select which model powers Petro's conversation</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="col-span-full">
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-2 block">OpenAI / OpenRouter API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showSecrets['openai_key'] ? 'text' : 'password'}
+                        className="input-field text-sm pr-10 font-mono"
+                        placeholder="sk-proj-... or sk-or-..."
+                        value={waConfig.openai_api_key}
+                        onChange={e => setWaConfig({ ...waConfig, openai_api_key: e.target.value })}
+                      />
+                      <button 
+                        type="button" 
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400" 
+                        onClick={() => toggleSecret('openai_key')}
+                      >
+                        {showSecrets['openai_key'] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Enter your OpenAI API key, or your OpenRouter key (starts with <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">sk-or-</code>) to use third-party models.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-2 block">Selected AI Model</label>
+                    <select
+                      className="input-field text-sm font-medium"
+                      value={dropdownValue}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === 'custom') {
+                          setWaConfig({ ...waConfig, openai_model: '' });
+                        } else {
+                          setWaConfig({ ...waConfig, openai_model: val });
+                        }
+                      }}
+                    >
+                      <optgroup label="OpenAI Models (Standard Key)">
+                        <option value="gpt-4o-mini">gpt-4o-mini (Default & highly cost-efficient)</option>
+                        <option value="gpt-4o">gpt-4o (High intelligence, premium reasoning)</option>
+                        <option value="gpt-4-turbo">gpt-4-turbo (Production standard)</option>
+                        <option value="o3-mini">o3-mini (Advanced fast reasoning)</option>
+                        <option value="o1">o1 (Full complex reasoning)</option>
+                      </optgroup>
+                      <optgroup label="OpenRouter Models (OpenRouter Key Required)">
+                        <option value="openai/gpt-4o-mini">OpenRouter: GPT-4o Mini</option>
+                        <option value="openai/gpt-4o">OpenRouter: GPT-4o</option>
+                        <option value="google/gemini-2.5-flash">OpenRouter: Gemini 2.5 Flash</option>
+                        <option value="google/gemini-2.5-pro">OpenRouter: Gemini 2.5 Pro</option>
+                        <option value="anthropic/claude-3.5-sonnet">OpenRouter: Claude 3.5 Sonnet</option>
+                        <option value="deepseek/deepseek-chat">OpenRouter: DeepSeek V3 (Chat)</option>
+                        <option value="deepseek/deepseek-reasoner">OpenRouter: DeepSeek R1 (Reasoner)</option>
+                        <option value="meta-llama/llama-3.3-70b-instruct">OpenRouter: LLaMA 3.3 70B</option>
+                      </optgroup>
+                      <option value="custom">✍️ Custom Model ID...</option>
+                    </select>
+                  </div>
+
+                  {!isPredefined && (
+                    <div className="col-span-full">
+                      <label className="text-xs font-700 text-gray-400 uppercase mb-2 block">Custom Model ID</label>
+                      <input
+                        type="text"
+                        className="input-field text-sm font-mono"
+                        placeholder="e.g. google/gemini-2.0-flash-exp or anthropic/claude-3.5-haiku"
+                        value={waConfig.openai_model}
+                        onChange={e => setWaConfig({ ...waConfig, openai_model: e.target.value })}
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        Enter the exact model identifier from the OpenAI or OpenRouter documentation (e.g., <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">deepseek/deepseek-chat</code>).
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            {/* Model Pricing Table */}
+            <div className="card p-6">
+              <h4 className="text-sm font-700 mb-3" style={{ fontWeight: 700 }}>AI Model Token Pricing (Estimates per 1M tokens)</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[10px] font-800 text-gray-400 uppercase tracking-wider">
+                      <th className="py-3 pr-4">Model Name</th>
+                      <th className="py-3 px-4">Input Cost (per 1M)</th>
+                      <th className="py-3 px-4">Output Cost (per 1M)</th>
+                      <th className="py-3 pl-4 text-right">Recommendation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-xs font-600 text-gray-600 divide-y divide-gray-50">
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">gpt-4o-mini</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.15</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.60</td>
+                      <td className="py-3 pl-4 text-right text-emerald-700 font-bold">✨ Highly Recommended (Best Value)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">gpt-4o</td>
+                      <td className="py-3 px-4">$2.50</td>
+                      <td className="py-3 px-4">$10.00</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">High intelligence, standard standard</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">gpt-4-turbo</td>
+                      <td className="py-3 px-4">$10.00</td>
+                      <td className="py-3 px-4">$30.00</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">Legacy production model</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">o3-mini</td>
+                      <td className="py-3 px-4">$1.10</td>
+                      <td className="py-3 px-4">$4.40</td>
+                      <td className="py-3 pl-4 text-right text-purple-700">Reasoning model (Great for complex logic)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">o1</td>
+                      <td className="py-3 px-4">$15.00</td>
+                      <td className="py-3 px-4">$60.00</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">Deep reasoning, very expensive</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">google/gemini-2.5-flash</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.075</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.30</td>
+                      <td className="py-3 pl-4 text-right text-emerald-700">Excellent alternative, ultra cheap</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">google/gemini-2.5-pro</td>
+                      <td className="py-3 px-4">$1.25</td>
+                      <td className="py-3 px-4">$5.00</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">Deep logical reasoning</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">anthropic/claude-3.5-sonnet</td>
+                      <td className="py-3 px-4">$3.00</td>
+                      <td className="py-3 px-4">$15.00</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">Industry standard for coding & reasoning</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">deepseek/deepseek-chat (V3)</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.14</td>
+                      <td className="py-3 px-4 text-emerald-600">$0.28</td>
+                      <td className="py-3 pl-4 text-right text-emerald-700">Ultra cost-effective intelligence</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">deepseek/deepseek-reasoner (R1)</td>
+                      <td className="py-3 px-4">$0.55</td>
+                      <td className="py-3 px-4">$2.19</td>
+                      <td className="py-3 pl-4 text-right text-purple-700">R1 Reasoning model, very cheap</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4 font-bold text-gray-800">meta-llama/llama-3.3-70b</td>
+                      <td className="py-3 px-4">$0.35</td>
+                      <td className="py-3 px-4">$0.40</td>
+                      <td className="py-3 pl-4 text-right text-gray-400">Powerful open-weights model</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button 
+                className="btn-sage min-w-[200px]" 
+                onClick={handleSaveWhatsAppConfig} 
+                disabled={waSaving}
+              >
+                {waSaving ? (
+                  <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                ) : (
+                  <><Save size={16} /> Save AI Model Config</>
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
         {activeTab === 'payments' && (
           <div className="flex flex-col gap-6">
             {payMessage && (
@@ -1966,6 +2188,64 @@ export default function SettingsPage() {
                 </select>
               </div>
             )}
+
+            {/* Partial Payments */}
+            <div className="card p-6 border-dashed border-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h4 className="text-sm font-700 mb-1" style={{ fontWeight: 700 }}>Partial Deposit Payments</h4>
+                  <p className="text-xs text-gray-400">Require an advance deposit payment to confirm WhatsApp AI Agent bookings</p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-xs font-600 text-gray-500">{payConfig.partial_payment_enabled ? 'Enabled' : 'Disabled'}</span>
+                  <input 
+                    type="checkbox" 
+                    checked={payConfig.partial_payment_enabled} 
+                    onChange={e => setPayConfig({...payConfig, partial_payment_enabled: e.target.checked})} 
+                    className="w-4 h-4" 
+                    style={{ accentColor: 'var(--sage)' }} 
+                  />
+                </label>
+              </div>
+
+              {payConfig.partial_payment_enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Deposit Type</label>
+                    <select 
+                      className="input-field text-sm" 
+                      value={payConfig.partial_payment_type} 
+                      onChange={e => setPayConfig({...payConfig, partial_payment_type: e.target.value})}
+                    >
+                      <option value="percent">Percentage (%) of Service Price</option>
+                      <option value="flat">Flat Fee Amount</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">
+                      {payConfig.partial_payment_type === 'percent' ? 'Deposit Percentage' : 'Deposit Amount'}
+                    </label>
+                    <input 
+                      type="number" 
+                      className="input-field text-sm" 
+                      min="0" 
+                      value={payConfig.partial_payment_value} 
+                      onChange={e => setPayConfig({...payConfig, partial_payment_value: parseFloat(e.target.value) || 0})} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-700 text-gray-400 uppercase mb-1 block">Hold Expiration (Minutes)</label>
+                    <input 
+                      type="number" 
+                      className="input-field text-sm" 
+                      min="1" 
+                      value={payConfig.partial_payment_hold} 
+                      onChange={e => setPayConfig({...payConfig, partial_payment_hold: parseInt(e.target.value) || 30})} 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end">
               <button className="btn-sage min-w-[200px]" onClick={handleSavePaymentConfig} disabled={paySaving}>

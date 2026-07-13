@@ -6,9 +6,17 @@ const AUTH_TAG_LENGTH = 16;
 
 /**
  * Gets a derived 32-byte key buffer from the ENCRYPTION_SECRET environment variable.
+ * Throws if the secret is not configured — never falls back to a hardcoded key.
  */
 function getEncryptionKey(): Buffer {
-  const secret = process.env.ENCRYPTION_SECRET || 'fallback-secret-key-32-chars-long!!';
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret) {
+    throw new Error(
+      '[SECURITY] ENCRYPTION_SECRET environment variable is not set. ' +
+      'This is required to encrypt sensitive data. ' +
+      'Generate a strong random secret (e.g. openssl rand -hex 32) and set it in your .env file.'
+    );
+  }
   return crypto.createHash('sha256').update(secret).digest();
 }
 

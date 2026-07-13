@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reminders?secret=REPLACE_WITH_CRON_SECRET",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/vaccines?secret=REPLACE_WITH_CRON_SECRET",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/data-retention?secret=REPLACE_WITH_CRON_SECRET",
+      "schedule": "0 3 * * 0"
+    }
+  ]
+}

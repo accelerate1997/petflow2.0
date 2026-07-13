@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PawPrint, Loader2 } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -230,5 +231,18 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F7F4] gap-4">
+        <Loader2 className="w-8 h-8 text-[#89A894] animate-spin" />
+        <p className="text-sm font-medium text-gray-500 font-sans">Loading login...</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

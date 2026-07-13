@@ -10,6 +10,7 @@ export type WebhookEvent =
   | 'client.created'
   | 'client.updated'
   | 'invoice.created'
+  | 'invoice.updated'
   | 'invoice.paid'
   | 'boarding.created'
   | 'boarding.checked_in'

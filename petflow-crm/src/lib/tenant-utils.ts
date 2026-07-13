@@ -2,9 +2,17 @@ import { headers } from 'next/headers'
 import { prisma } from './prisma'
 
 export async function getTenantFromHost() {
+  const isServerRuntime = process.env.NEXT_PHASE === 'phase-production-server' || process.env.NEXT_PHASE === 'phase-development-server'
+  if (!isServerRuntime) {
+    return await prisma.tenant.findUnique({
+      where: { id: 'default-tenant-id' },
+      include: { settings: true }
+    })
+  }
+
   try {
     const headersList = await headers()
-    const host = headersList.get('host') || ''
+    const host = headersList?.get('host') || ''
     
     // Split port if running locally (e.g. localhost:3000 -> localhost)
     const cleanHost = host.split(':')[0]
@@ -31,7 +39,6 @@ export async function getTenantFromHost() {
       include: { settings: true }
     })
   } catch (error) {
-    console.error('Error detecting tenant from host:', error)
     // Absolute fallback
     return await prisma.tenant.findUnique({
       where: { id: 'default-tenant-id' },

@@ -20,7 +20,15 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
+  const isServerRuntime = process.env.NEXT_PHASE === 'phase-production-server' || process.env.NEXT_PHASE === 'phase-development-server'
+  let session = null
+  if (isServerRuntime) {
+    try {
+      session = await getServerSession(authOptions)
+    } catch (error) {
+      session = null
+    }
+  }
   let settings = null
 
   if (session?.user && (session.user as any).tenantId) {
@@ -52,7 +60,7 @@ export default async function RootLayout({
         `}} />
       </head>
       <body suppressHydrationWarning={true}>
-        <Providers>
+        <Providers session={session}>
           <AppLayout settings={settings as any}>{children}</AppLayout>
           <CookieConsent />
           <div className="fixed bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none z-[9999]">

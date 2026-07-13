@@ -80,6 +80,21 @@ export async function POST(req: NextRequest) {
     const paymentEntity = event.payload?.payment?.entity
     const razorpayPaymentId = paymentEntity?.id
 
+    const pendingLink = await prisma.paymentLink.findFirst({
+      where: {
+        invoice_id: invoiceId,
+        provider: 'razorpay',
+        status: 'created',
+      },
+    })
+
+    const invoiceRecord = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+    })
+
+    const isPartial = pendingLink && invoiceRecord && pendingLink.amount < invoiceRecord.total_amount
+    const targetStatus = isPartial ? 'Partially Paid' : 'Paid'
+
     // Update PaymentLink record
     await prisma.paymentLink.updateMany({
       where: {
@@ -98,20 +113,23 @@ export async function POST(req: NextRequest) {
     await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
-        status: 'Paid',
+        status: targetStatus,
         payment_method: 'Online (Razorpay)',
       },
     })
 
-    // Update linked Appointment or BoardingReservation
-    const invoiceRecord = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-    })
-
     if (invoiceRecord?.appointment_id) {
+      const appt = await prisma.appointment.findUnique({
+        where: { id: invoiceRecord.appointment_id }
+      })
+      const nextApptStatus = appt?.status === 'PendingPayment' ? 'Booked' : appt?.status
+
       await prisma.appointment.update({
         where: { id: invoiceRecord.appointment_id },
-        data: { payment_status: 'Online' },
+        data: { 
+          payment_status: isPartial ? 'Partially Paid' : 'Online',
+          status: nextApptStatus
+        },
       })
     }
 
@@ -119,7 +137,7 @@ export async function POST(req: NextRequest) {
       await prisma.boardingReservation.update({
         where: { id: invoiceRecord.boarding_reservation_id },
         data: {
-          payment_status: 'Online',
+          payment_status: isPartial ? 'Partially Paid' : 'Online',
           payment_method: 'Online (Razorpay)',
         },
       })

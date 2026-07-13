@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp, ShoppingBag, Edit } from 'lucide-react'
+import { Plus, Search, Phone, Mail, MapPin, Trash2, ChevronDown, ChevronUp, ShoppingBag, Edit, ShieldOff } from 'lucide-react'
 import AddClientModal from '@/components/AddClientModal'
 import EditClientModal from '@/components/EditClientModal'
 import AddPetModal from '@/components/AddPetModal'
 import CheckoutModal from '@/components/CheckoutModal'
 import type { Client, Pet } from '@/types'
 import { getTemperamentStyle } from '@/types'
-import { getClients, deleteClient as deleteClientAction, getSettings } from '@/lib/actions'
+import { getClients, deleteClient as deleteClientAction, anonymizeClient as anonymizeClientAction, getSettings } from '@/lib/actions'
 import { formatCurrency as formatCurrencyHelper } from '@/lib/currency'
 import { useRouter } from 'next/navigation'
 
@@ -66,8 +66,26 @@ export default function ClientsPage() {
   const formatCurrency = (n: number) =>
     formatCurrencyHelper(n, currencyCode)
 
+  const handleEraseClient = async (id: string, name: string) => {
+    if (!confirm(
+      `⚠️ Erase "${name}"'s personal data?\n\n` +
+      `This will:\n` +
+      `✅ Remove their name, phone, email and address\n` +
+      `✅ Delete all chat messages\n` +
+      `⚠️ KEEP invoices & appointments (required by law)\n\n` +
+      `This cannot be undone. Continue?`
+    )) return
+    try {
+      await anonymizeClientAction(id)
+      fetchClients()
+      router.refresh()
+    } catch (error) {
+      console.error('Error erasing client:', error)
+    }
+  }
+
   const handleDeleteClient = async (id: string) => {
-    if (!confirm('Delete this client and all their pets?')) return
+    if (!confirm('⚠️ Hard delete this client? This removes ALL data including invoices. Only use for test accounts.')) return
     try {
       await deleteClientAction(id)
       fetchClients()
@@ -249,10 +267,11 @@ export default function ClientsPage() {
                           <Plus size={13} /> Add Pet
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id) }}
+                          onClick={(e) => { e.stopPropagation(); handleEraseClient(client.id, client.name) }}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[0.75rem] font-700 hover:bg-red-100 transition-colors"
+                          title="Erase client's personal data (GDPR/DPDP compliant)"
                         >
-                          <Trash2 size={13} /> Delete
+                          <ShieldOff size={13} /> Erase Data
                         </button>
                       </div>
                     </div>

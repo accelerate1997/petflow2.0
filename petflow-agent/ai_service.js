@@ -19,6 +19,8 @@ const prisma = new PrismaClient();
 const { buildSystemPrompt, loadConfig, getEnabledToolNames, getBookingRules } = require('./petro_config_loader');
 const { validateBookingSlot } = require('./booking_rules_engine');
 const { decrypt } = require('./encryption');
+const Razorpay = require('razorpay');
+const Stripe = require('stripe');
 
 // System prompt is now built dynamically from PetroConfig DB via petro_config_loader.js
 // buildSystemPrompt() is imported from petro_config_loader
@@ -444,13 +446,15 @@ const toolImplementations = {
             
             // Resolve pet_id (could be name or ID) within tenant
             let pet = await prisma.pet.findFirst({
-                where: { id: pet_id, tenantId }
+                where: { id: pet_id, tenantId },
+                include: { owner: true }
             }).catch(() => null);
 
             if (!pet) {
                 // Try searching by name case-insensitively within tenant
                 pet = await prisma.pet.findFirst({
-                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId }
+                    where: { pet_name: { equals: pet_id, mode: 'insensitive' }, tenantId },
+                    include: { owner: true }
                 });
             }
 
@@ -521,6 +525,17 @@ const toolImplementations = {
                 }
             }
 
+            // Check if partial payments are enabled
+            const payConfig = await prisma.paymentConfig.findFirst({
+                where: { tenantId: resolvedTenantId }
+            });
+
+            const settings = await prisma.settings.findFirst({
+                where: { tenantId: resolvedTenantId }
+            });
+
+            const partialPaymentEnabled = payConfig && payConfig.partial_payment_enabled;
+
             const appt = await prisma.appointment.create({
                 data: {
                     pet_id: pet.id,
@@ -528,12 +543,157 @@ const toolImplementations = {
                     appointment_date,
                     appointment_time,
                     notes: notes || null,
-                    status: 'Booked',
+                    status: partialPaymentEnabled ? 'PendingPayment' : 'Booked',
                     groomer_id: check.groomerId,
                     price: finalPrice,
                     tenantId: resolvedTenantId
                 }
             });
+
+            let paymentLinkUrl = null;
+            let depositAmount = 0;
+
+            if (partialPaymentEnabled) {
+                // Calculate deposit amount
+                if (payConfig.partial_payment_type === 'percent') {
+                    depositAmount = Math.round((finalPrice * (payConfig.partial_payment_value / 100)) * 100) / 100;
+                } else {
+                    depositAmount = Math.min(finalPrice, payConfig.partial_payment_value);
+                }
+
+                // Generate invoice number
+                const lastInvoice = await prisma.invoice.findFirst({
+                    where: { tenantId: resolvedTenantId },
+                    orderBy: { created: 'desc' },
+                    select: { invoice_number: true }
+                });
+                let nextNum = 1;
+                if (lastInvoice) {
+                    const match = lastInvoice.invoice_number.match(/\d+/);
+                    if (match) {
+                        nextNum = parseInt(match[0], 10) + 1;
+                    }
+                }
+                let invoice_number = `PF-${String(nextNum).padStart(4, '0')}`;
+                let collision = await prisma.invoice.findUnique({ where: { invoice_number } });
+                while (collision) {
+                    nextNum++;
+                    invoice_number = `PF-${String(nextNum).padStart(4, '0')}`;
+                    collision = await prisma.invoice.findUnique({ where: { invoice_number } });
+                }
+
+                // Create Invoice
+                const invoice = await prisma.invoice.create({
+                    data: {
+                        invoice_number,
+                        tenantId: resolvedTenantId,
+                        appointment_id: appt.id,
+                        client_id: pet.owner_id,
+                        subtotal: finalPrice,
+                        discount: 0,
+                        discount_type: 'flat',
+                        tax_rate: 0,
+                        tax_amount: 0,
+                        total_amount: finalPrice,
+                        payment_method: 'Online',
+                        status: 'Unpaid'
+                    }
+                });
+
+                // Generate Payment Link
+                try {
+                    const currencyCode = (settings?.currency_code || 'INR').toUpperCase();
+                    const selectedProvider = payConfig.default_provider || 'razorpay';
+                    let providerLinkId = '';
+                    let url = '';
+
+                    const client = pet.owner;
+
+                    if (selectedProvider === 'razorpay') {
+                        if (!payConfig.razorpay_enabled || !payConfig.razorpay_key_id || !payConfig.razorpay_key_secret) {
+                            throw new Error('Razorpay is not configured');
+                        }
+                        const rz = new Razorpay({
+                            key_id: payConfig.razorpay_key_id,
+                            key_secret: decrypt(payConfig.razorpay_key_secret),
+                        });
+
+                        const link = await rz.paymentLink.create({
+                            amount: Math.round(depositAmount * 100),
+                            currency: currencyCode,
+                            reference_id: invoice.id,
+                            description: `Deposit for Invoice #${invoice.invoice_number}`,
+                            customer: {
+                                name: client.name || 'Customer',
+                                email: client.email || '',
+                                contact: client.whatsapp_number || '',
+                            },
+                            notify: { sms: false, email: false },
+                            notes: {
+                                invoice_id: invoice.id,
+                                invoice_number: invoice.invoice_number,
+                            },
+                        });
+                        providerLinkId = link.id;
+                        url = link.short_url;
+                    } else if (selectedProvider === 'stripe') {
+                        if (!payConfig.stripe_enabled || !payConfig.stripe_secret_key) {
+                            throw new Error('Stripe is not configured');
+                        }
+                        const stripe = new Stripe(decrypt(payConfig.stripe_secret_key));
+                        const session = await stripe.checkout.sessions.create({
+                            mode: 'payment',
+                            payment_method_types: ['card'],
+                            line_items: [
+                                {
+                                    price_data: {
+                                        currency: currencyCode.toLowerCase(),
+                                        unit_amount: Math.round(depositAmount * 100),
+                                        product_data: {
+                                            name: `Deposit for Invoice #${invoice.invoice_number}`,
+                                        },
+                                    },
+                                    quantity: 1,
+                                },
+                            ],
+                            metadata: {
+                                invoice_id: invoice.id,
+                                invoice_number: invoice.invoice_number,
+                            },
+                            success_url: `${process.env.CRM_PUBLIC_URL || 'http://localhost:3000'}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+                            cancel_url: `${process.env.CRM_PUBLIC_URL || 'http://localhost:3000'}/payment/cancelled`,
+                        });
+                        providerLinkId = session.id;
+                        url = session.url || '';
+                    } else {
+                        throw new Error(`Unsupported payment provider: ${selectedProvider}`);
+                    }
+
+                    await prisma.paymentLink.create({
+                        data: {
+                            tenantId: resolvedTenantId,
+                            invoice_id: invoice.id,
+                            provider: selectedProvider,
+                            provider_link_id: providerLinkId,
+                            url,
+                            amount: depositAmount,
+                            currency: currencyCode,
+                            status: 'created',
+                        },
+                    });
+
+                    paymentLinkUrl = url;
+                } catch (linkError) {
+                    console.error('[Generate Deposit Link Error]:', linkError);
+                    // Rollback the appointment and invoice if payment link generation failed
+                    await prisma.invoice.delete({ where: { id: invoice.id } }).catch(() => {});
+                    await prisma.appointment.delete({ where: { id: appt.id } }).catch(() => {});
+                    return {
+                        success: false,
+                        error: "Could not generate deposit payment link. Please configure your payment gateway first."
+                    };
+                }
+            }
 
             // Check for overdue vaccines
             const overdue = await prisma.vaccinationRecord.findMany({
@@ -545,6 +705,20 @@ const toolImplementations = {
             const warning = overdue.length > 0 
                 ? `WARNING: The pet has overdue vaccinations: ${overdue.map(o => o.vaccine_name).join(', ')}. Please advise the owner to bring updated records or schedule boosters.`
                 : null;
+
+            if (partialPaymentEnabled) {
+                const currencySymbol = settings?.currency_symbol || '₹';
+                return {
+                    success: true,
+                    message: `Appointment requested for ${appointment_date} at ${appointment_time}. A deposit of ${currencySymbol}${depositAmount} is required to confirm.`,
+                    appointment_id: appt.id,
+                    partial_payment_required: true,
+                    deposit_amount: depositAmount,
+                    payment_link: paymentLinkUrl,
+                    hold_duration_minutes: payConfig.partial_payment_hold || 30,
+                    vaccine_warning: warning
+                };
+            }
 
             return { 
                 success: true, 
@@ -948,7 +1122,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         );
         const openAiKey = decrypt(whatsAppConfig?.openai_api_key) || process.env.OPENAI_API_KEY;
         if (!openAiKey) {
-            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
+            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the AI Model tab.");
         }
         
         const clientOptions = { apiKey: openAiKey };
@@ -961,7 +1135,7 @@ async function processMessage(userInput, phone, onMessageSaved = null) {
         }
         const clientOpenai = new OpenAI(clientOptions);
 
-        const modelName = process.env.OPENAI_MODEL || (
+        const modelName = whatsAppConfig?.openai_model || process.env.OPENAI_MODEL || (
             (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter'))
                 ? 'openai/gpt-4o-mini'
                 : 'gpt-4o-mini'
@@ -1173,7 +1347,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
 
         const openAiKey = decrypt(whatsAppConfig?.openai_api_key) || process.env.OPENAI_API_KEY;
         if (!openAiKey) {
-            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the WhatsApp tab.");
+            throw new Error("OpenAI API Key is missing. Please configure it in CRM Settings under the AI Model tab.");
         }
         
         const clientOptions = { apiKey: openAiKey };
@@ -1186,7 +1360,7 @@ async function processPlaygroundMessage({ draftConfig, messages }) {
         }
         const clientOpenai = new OpenAI(clientOptions);
 
-        const modelName = process.env.OPENAI_MODEL || (
+        const modelName = whatsAppConfig?.openai_model || process.env.OPENAI_MODEL || (
             (openAiKey.startsWith('sk-or-') || openAiKey.includes('openrouter'))
                 ? 'openai/gpt-4o-mini'
                 : 'gpt-4o-mini'

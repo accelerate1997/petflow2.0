@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { validateInviteToken, registerViaInvite } from '@/lib/invite-actions'
 import { PawPrint, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, UserPlus } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function RegisterPage() {
+function RegisterContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token') || ''
@@ -206,5 +207,18 @@ export default function RegisterPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F7F4] gap-4">
+        <Loader2 className="w-8 h-8 text-[#89A894] animate-spin" />
+        <p className="text-sm font-medium text-gray-500 font-sans">Validating invite...</p>
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   )
 }

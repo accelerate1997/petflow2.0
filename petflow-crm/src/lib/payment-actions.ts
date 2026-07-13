@@ -34,6 +34,10 @@ export async function updatePaymentConfig(data: {
   stripe_webhook_secret?: string | null
   stripe_publishable_key?: string | null
   default_provider?: string
+  partial_payment_enabled?: boolean
+  partial_payment_type?: string
+  partial_payment_value?: number
+  partial_payment_hold?: number
 }) {
   const tenantId = await getCurrentTenantId()
   
@@ -65,7 +69,8 @@ export async function updatePaymentConfig(data: {
 
 export async function createPaymentLink(
   invoiceId: string,
-  provider?: 'razorpay' | 'stripe'
+  provider?: 'razorpay' | 'stripe',
+  amount?: number
 ) {
   const tenantId = await getCurrentTenantId()
   const settings = await prisma.settings.findFirst({ where: { tenantId } })
@@ -110,6 +115,8 @@ export async function createPaymentLink(
   let providerLinkId = ''
   let url = ''
 
+  const finalAmount = amount !== undefined ? amount : invoice.total_amount
+
   if (selectedProvider === 'razorpay') {
     if (!config.razorpay_enabled || !config.razorpay_key_id || !config.razorpay_key_secret) {
       throw new Error('Razorpay is not configured')
@@ -121,10 +128,10 @@ export async function createPaymentLink(
     })
 
     const link = await rz.paymentLink.create({
-      amount: Math.round(invoice.total_amount * 100), // paise/cents
+      amount: Math.round(finalAmount * 100), // paise/cents
       currency: currencyCode,
       reference_id: invoice.id,
-      description: `Payment for Invoice #${invoice.invoice_number}`,
+      description: amount ? `Deposit for Invoice #${invoice.invoice_number}` : `Payment for Invoice #${invoice.invoice_number}`,
       customer: {
         name: clientName,
         email: clientEmail,
@@ -153,9 +160,9 @@ export async function createPaymentLink(
         {
           price_data: {
             currency: currencyCode.toLowerCase(),
-            unit_amount: Math.round(invoice.total_amount * 100),
+            unit_amount: Math.round(finalAmount * 100),
             product_data: {
-              name: `Invoice #${invoice.invoice_number}`,
+              name: amount ? `Deposit for Invoice #${invoice.invoice_number}` : `Invoice #${invoice.invoice_number}`,
             },
           },
           quantity: 1,
@@ -182,7 +189,7 @@ export async function createPaymentLink(
       provider: selectedProvider,
       provider_link_id: providerLinkId,
       url,
-      amount: invoice.total_amount,
+      amount: finalAmount,
       currency: currencyCode,
       status: 'created',
     },

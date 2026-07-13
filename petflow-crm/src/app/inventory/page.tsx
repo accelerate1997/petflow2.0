@@ -33,6 +33,7 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [activeTypeTab, setActiveTypeTab] = useState<'Retail' | 'Spa'>('Retail')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -67,6 +68,7 @@ export default function InventoryPage() {
 
   const filtered = useMemo(() => {
     return products.filter(p => {
+      if ((p.inventory_type || 'Retail') !== activeTypeTab) return false
       if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
           !p.sku?.toLowerCase().includes(search.toLowerCase())) return false
       if (categoryFilter && p.category !== categoryFilter) return false
@@ -75,15 +77,18 @@ export default function InventoryPage() {
       if (stockFilter === 'low_stock' && (p.stock === 0 || p.stock > p.low_stock_threshold)) return false
       return true
     })
-  }, [products, search, categoryFilter, stockFilter])
+  }, [products, search, categoryFilter, stockFilter, activeTypeTab])
 
   // ── Stats ─────────────────────────────────────────────
-  const stats = useMemo(() => ({
-    total: products.length,
-    totalValue: products.reduce((s, p) => s + p.retail_price * p.stock, 0),
-    lowStock: products.filter(p => p.stock > 0 && p.stock <= p.low_stock_threshold).length,
-    outOfStock: products.filter(p => p.stock === 0).length,
-  }), [products])
+  const stats = useMemo(() => {
+    const tabProducts = products.filter(p => (p.inventory_type || 'Retail') === activeTypeTab)
+    return {
+      total: tabProducts.length,
+      totalValue: tabProducts.reduce((s, p) => s + p.retail_price * p.stock, 0),
+      lowStock: tabProducts.filter(p => p.stock > 0 && p.stock <= p.low_stock_threshold).length,
+      outOfStock: tabProducts.filter(p => p.stock === 0).length,
+    }
+  }, [products, activeTypeTab])
 
   const handleAdjust = async (id: string, delta: number) => {
     setAdjustingId(id)
@@ -119,19 +124,55 @@ export default function InventoryPage() {
           <p className="text-gray-400 text-sm">Manage grooming supplies & retail products</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowCheckout(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-sage-dark text-sage-dark font-800 rounded-2xl hover:bg-sage-muted/10 transition-all active:scale-95 shadow-lg shadow-sage/5"
-          >
-            <ShoppingBag size={20} /> Direct Sale
-          </button>
+          {activeTypeTab === 'Retail' && (
+            <button 
+              onClick={() => setShowCheckout(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-sage-dark text-sage-dark font-800 rounded-2xl hover:bg-sage-muted/10 transition-all active:scale-95 shadow-lg shadow-sage/5 cursor-pointer"
+            >
+              <ShoppingBag size={20} /> Direct Sale
+            </button>
+          )}
           <button 
             onClick={() => { setEditProduct(null); setShowModal(true) }}
-            className="flex items-center gap-2 px-6 py-3 bg-sage-dark text-white font-800 rounded-2xl hover:bg-sage-dark/90 transition-all active:scale-95 shadow-lg shadow-sage/20"
+            className="flex items-center gap-2 px-6 py-3 bg-sage-dark text-white font-800 rounded-2xl hover:bg-sage-dark/90 transition-all active:scale-95 shadow-lg shadow-sage/20 cursor-pointer"
           >
             <Plus size={20} /> Add Product
           </button>
         </div>
+      </div>
+
+      {/* ── Inventory Type Tabs ── */}
+      <div className="flex items-center gap-1 mb-6 border-b overflow-x-auto hide-scrollbar" style={{ borderColor: '#e2e8f0' }}>
+        <button
+          onClick={() => setActiveTypeTab('Retail')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            color: activeTypeTab === 'Retail' ? 'var(--sage-dark)' : '#94a3b8',
+            borderBottom: activeTypeTab === 'Retail' ? '2.5px solid var(--sage)' : '2.5px solid transparent',
+            transition: 'all 0.2s',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          🛍️ Retail Store
+        </button>
+        <button
+          onClick={() => setActiveTypeTab('Spa')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            color: activeTypeTab === 'Spa' ? 'var(--sage-dark)' : '#94a3b8',
+            borderBottom: activeTypeTab === 'Spa' ? '2.5px solid var(--sage)' : '2.5px solid transparent',
+            transition: 'all 0.2s',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          🛁 Spa Supplies / Consumables
+        </button>
       </div>
 
       {/* ── Stats ── */}

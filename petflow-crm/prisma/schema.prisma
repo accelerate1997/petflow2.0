@@ -37,6 +37,7 @@ model Tenant {
   payment_configs PaymentConfig[]
   webhook_endpoints WebhookEndpoint[]
   vans            Van[]
+  audit_logs      AuditLog[]
 }
 
 model Client {
@@ -51,10 +52,21 @@ model Client {
   join_date       DateTime?     @default(now())
   created         DateTime      @default(now())
   updated         DateTime      @updatedAt
+  
+  // ─── GDPR / DPDP Compliance Fields ────────────────────────────────────────
+  consent_given         Boolean   @default(false)              // Has client given explicit consent?
+  consent_date          DateTime?                              // When consent was given
+  consent_channel       String?                               // "whatsapp" | "web" | "manual"
+  marketing_opt_in      Boolean   @default(false)             // Opted in to marketing campaigns?
+  marketing_opt_out_at  DateTime?                             // When they opted out
+  deletion_requested_at DateTime?                             // Right to erasure request date
+  is_anonymized         Boolean   @default(false)             // PII has been removed (erasure fulfilled)
   pets            Pet[]
   sales           Sale[]
   invoices        Invoice[]
   chat_sessions   ChatSession[]
+  consent_logs    ConsentLog[]
+  data_requests   DataRequest[]
 }
 
 model Pet {
@@ -109,6 +121,7 @@ model Product {
   unit                String?  @default("pcs") // pcs, ml, kg, g
   image_url           String?
   is_active           Boolean  @default(true)
+  inventory_type      String   @default("Retail")
   created             DateTime @default(now())
   updated             DateTime @updatedAt
   sales               Sale[]
@@ -232,6 +245,7 @@ model Settings {
   tax_presets     Json?    @default("[0,5,12,18]")   // Available tax rate buttons
   tip_enabled     Boolean? @default(false)           // Tipping at POS (US market)
   mobile_enabled  Boolean  @default(false)           // Toggle for mobile van features
+  onboarded       Boolean? @default(false)           // Onboarding completed flag (Option A)
   created         DateTime @default(now())
   updated         DateTime @updatedAt
 }
@@ -244,6 +258,7 @@ model WhatsAppConfig {
   evolution_api_key String?
   instance_name     String?
   openai_api_key    String?
+  openai_model      String?  @default("gpt-4o-mini")
   agent_public_url  String?
   booking_link      String?
   spa_name          String?
@@ -270,6 +285,7 @@ model ChatSession {
   channel         String        @default("whatsapp")
   created         DateTime      @default(now())
   updated         DateTime      @updatedAt
+  retention_expires_at DateTime?
   messages        ChatMessage[]
 }
 
@@ -477,6 +493,11 @@ model PaymentConfig {
   stripe_publishable_key    String?
   // General
   default_provider          String   @default("razorpay") // "razorpay" | "stripe"
+  // Partial Payments
+  partial_payment_enabled Boolean  @default(false)
+  partial_payment_type    String   @default("percent") // "percent" | "flat"
+  partial_payment_value   Float    @default(20.0)
+  partial_payment_hold    Int      @default(30)       // Hold duration in minutes
   created                   DateTime @default(now())
   updated                   DateTime @updatedAt
 }
@@ -520,6 +541,55 @@ model Van {
   appointments Appointment[]
   created      DateTime      @default(now())
   updated      DateTime      @updatedAt
+}
+
+// ─── GDPR / DPDP Compliance Models ───────────────────────────────────────────
+
+/// Immutable audit trail of every consent event (grant, withdrawal, opt-out)
+model ConsentLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  client_id   String?
+  client      Client?  @relation(fields: [client_id], references: [id], onDelete: SetNull)
+  phone       String?  // Phone at time of consent (in case client record is deleted)
+  event       String   // "granted" | "withdrawn" | "marketing_opt_in" | "marketing_opt_out" | "stop_keyword"
+  channel     String   // "whatsapp" | "web" | "manual" | "instagram"
+  message_text String? @db.Text // The consent message that was shown to the user
+  ip_address  String?
+  created     DateTime @default(now())
+}
+
+/// Data Subject Access / Rights Requests (DSAR) — right to access, erasure, portability, rectification
+model DataRequest {
+  id           String    @id @default(cuid())
+  tenantId     String?
+  client_id    String?
+  client       Client?   @relation(fields: [client_id], references: [id], onDelete: SetNull)
+  phone        String?   // Contact used to identify requester
+  email        String?   // Contact used to identify requester
+  type         String    // "ACCESS" | "ERASURE" | "PORTABILITY" | "RECTIFICATION" | "RESTRICTION"
+  status       String    @default("Pending") // "Pending" | "InProgress" | "Fulfilled" | "Rejected"
+  notes        String?   @db.Text // Admin notes
+  country      String?   // "IN" | "AE" | "US" — determines response deadline
+  deadline_at  DateTime? // Auto-calculated: 7d (IN/DPDP), 30d (AE/PDPL), 45d (US/CCPA)
+  fulfilled_at DateTime?
+  created      DateTime  @default(now())
+  updated      DateTime  @updatedAt
+}
+
+/// Audit log for sensitive data access and admin actions (GDPR accountability principle)
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  user_id     String?  // CRM user who performed the action
+  user_email  String?  // Denormalized for retention after user deletion
+  action      String   // e.g. "client.view" | "client.export" | "client.delete" | "campaign.send" | "dsar.fulfilled"
+  entity_type String?  // "Client" | "ChatSession" | "Appointment" | "Campaign"
+  entity_id   String?  // ID of the affected record
+  metadata    Json?    // Additional context (e.g. { "client_count": 50 } for bulk campaigns)
+  ip_address  String?
+  created     DateTime @default(now())
 }
 
 

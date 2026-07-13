@@ -7,6 +7,7 @@ const { PrismaClient } = require('@prisma/client');
 const { processMessage, clearSession, getActiveSessions, getSessionInfo } = require('./ai_service');
 const twilioClient = require('./twilio');
 const instagramClient = require('./instagram');
+const consentService = require('./consent_service');
 
 async function sendReply(remoteJid, text) {
     if (remoteJid.startsWith('instagram:')) {
@@ -313,6 +314,121 @@ app.post('/webhook', webhookLimiter, async (req, res) => {
             text:  text.substring(0, 60)
         });
         if (recentWebhooks.length > 10) recentWebhooks.pop();
+
+        // ─── GDPR / DPDP: Handle special keywords BEFORE anything else ──────
+
+        // Handle STOP keyword (marketing opt-out) — respond immediately
+        if (consentService.isStopKeyword(text)) {
+            console.log(`[CONSENT] STOP keyword from ${phone}`);
+            const stopReply = await consentService.recordMarketingOptOut(phone, null, isTwilio ? 'twilio' : 'whatsapp');
+            await sendReply(remoteJid, stopReply);
+            return;
+        }
+
+        // Handle MY DATA / data rights keyword — provide data rights information
+        if (consentService.isDataRightsRequest(text)) {
+            console.log(`[CONSENT] Data rights request from ${phone}`);
+
+            // Check if it's specifically a deletion/erasure request
+            if (consentService.isErasureRequest(text)) {
+                const crmUrl = process.env.CRM_PUBLIC_URL || process.env.NEXTAUTH_URL || 'https://yourpetflow.com';
+                const deleteUrl = `${crmUrl}/delete-my-data`;
+                const erasureMsg =
+                    `🗑️ *Delete Your Data*\n\n` +
+                    `You can submit a data deletion request using the link below. It takes less than a minute:\n\n` +
+                    `🔗 ${deleteUrl}\n\n` +
+                    `Once submitted, we will:\n` +
+                    `✅ Remove your name, phone, email & address\n` +
+                    `✅ Delete your chat history\n` +
+                    `⚠️ Keep invoices for legal compliance\n\n` +
+                    `You will receive a reference ID and we will complete it within *7 days* (as required by the DPDP Act).\n\n` +
+                    `_If you have any questions, please contact the spa directly._`;
+                await sendReply(remoteJid, erasureMsg);
+            } else {
+                const crmUrl = process.env.CRM_PUBLIC_URL || process.env.NEXTAUTH_URL || 'https://yourpetflow.com';
+                const dataRightsMsg =
+                    `🔒 *Your Data Rights*\n\n` +
+                    `We store your name, phone number, and appointment history to manage your pet's care.\n\n` +
+                    `You have the right to:\n` +
+                    `• *Access* — Request a copy of your data\n` +
+                    `• *Correct* — Update any incorrect information\n` +
+                    `• *Delete* — Ask us to erase your data\n` +
+                    `• *Unsubscribe* — Reply STOP to stop marketing messages\n\n` +
+                    `To exercise any of these rights:\n` +
+                    `🔗 ${crmUrl}/delete-my-data\n\n` +
+                    `Or reply *DELETE MY DATA* to start a deletion request.\n\n` +
+                    `_Your data is protected under DPDP Act 🇮🇳 / PDPL 🇦🇪 / CCPA 🇺🇸_`;
+                await sendReply(remoteJid, dataRightsMsg);
+            }
+            return;
+        }
+
+        // ─── GDPR / DPDP: Consent Gate ──────────────────────────────────────
+        // Every new user must give consent before we collect/store their data
+
+        const { hasConsent, hasDeclined, client } = await consentService.getConsentStatus(phone, null);
+
+        if (hasDeclined) {
+            // Client previously declined — do not process
+            console.log(`[CONSENT] Declined client ${phone} — not processing message.`);
+            return;
+        }
+
+        if (!hasConsent) {
+            // Check if we've already asked for consent and are waiting for a reply
+            const isPending = await consentService.isConsentPending(phone, null);
+
+            if (isPending) {
+                // We asked, now check what they replied
+                if (consentService.isConsentGrant(text)) {
+                    console.log(`[CONSENT] Consent GRANTED by ${phone}`);
+                    await consentService.recordConsent(phone, null, isTwilio ? 'twilio' : 'whatsapp');
+                    // Now ask about marketing opt-in
+                    const marketingMsg = consentService.buildMarketingOptInMessage();
+                    await sendReply(remoteJid, marketingMsg);
+                    return;
+                } else if (consentService.isConsentDecline(text)) {
+                    console.log(`[CONSENT] Consent DECLINED by ${phone}`);
+                    await sendReply(remoteJid, consentService.CONSENT_DECLINED_MESSAGE);
+                    return;
+                } else {
+                    // Check if they're answering the marketing opt-in question
+                    const { hasConsent: nowHasConsent } = await consentService.getConsentStatus(phone, null);
+                    if (nowHasConsent) {
+                        if (consentService.isConsentGrant(text)) {
+                            await consentService.recordMarketingOptIn(phone, null, isTwilio ? 'twilio' : 'whatsapp');
+                            // Fall through to processMessage
+                        }
+                        // Either way (YES or NO to marketing), proceed to chat
+                    } else {
+                        // Re-send consent message if they sent something else
+                        const spaName = process.env.SPA_NAME || 'Pet Spa';
+                        await sendReply(remoteJid, consentService.buildConsentMessage(spaName));
+                        return;
+                    }
+                }
+            } else {
+                // First contact — send consent message
+                console.log(`[CONSENT] First contact from ${phone} — sending consent message`);
+                const spaName = process.env.SPA_NAME || 'Pet Spa';
+                const consentMsg = consentService.buildConsentMessage(spaName);
+
+                // Save the consent-ask as a chat session message so isPending works
+                const session = await prisma.chatSession.upsert({
+                    where: { phone },
+                    update: { updated: new Date() },
+                    create: { phone, channel: isTwilio ? 'twilio' : 'whatsapp' }
+                });
+                await prisma.chatMessage.create({
+                    data: { session_id: session.id, role: 'assistant', content: consentMsg }
+                });
+
+                await sendReply(remoteJid, consentMsg);
+                return;
+            }
+        }
+
+        // ─── Consent verified — proceed with AI processing ───────────────────
 
         const readDelay = Math.floor(Math.random() * (4000 - 2000 + 1)) + 2000;
         await new Promise(resolve => setTimeout(resolve, readDelay));

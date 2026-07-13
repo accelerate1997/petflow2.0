@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, PawPrint, Users, Calendar, Settings, Sparkles, Tag, UserCog, ShoppingBag, BarChart2, Megaphone, Receipt, MessageSquare, Bot, BedDouble, LogOut, Truck } from 'lucide-react'
+import { LayoutDashboard, PawPrint, Users, Calendar, Settings, Sparkles, Tag, UserCog, ShoppingBag, BarChart2, Megaphone, Receipt, MessageSquare, Bot, BedDouble, LogOut, Truck, Shield } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 
 
 // Routes only accessible to SpaAdmin and SuperAdmin — hidden from Staff
-const adminOnlyHrefs = ['/staff']
+const adminOnlyHrefs = ['/staff', '/privacy']
 
 const navItems = [
   { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
@@ -26,6 +26,7 @@ const navItems = [
   { href: '/marketing',    label: 'Marketing',    icon: Megaphone },
   { href: '/crm/chats',    label: 'AI Chats',     icon: MessageSquare },
   { href: '/petro',        label: 'Petro AI',     icon: Bot },
+  { href: '/privacy',      label: 'Privacy',      icon: Shield },
   { href: '/settings',     label: 'Settings',     icon: Settings },
 ]
 
