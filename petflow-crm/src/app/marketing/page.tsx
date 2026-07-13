@@ -55,7 +55,7 @@ async function compressImage(file: File, maxWidth = 800, quality = 0.8): Promise
         if (!ctx) { reject(new Error('Canvas not supported')); return }
         ctx.drawImage(img, 0, 0, width, height)
         
-        const previewUrl = canvas.toDataURL('image/webp', quality)
+        const previewUrl = canvas.toDataURL('image/jpeg', quality)
         
         canvas.toBlob((blob) => {
           if (blob) {
@@ -63,7 +63,7 @@ async function compressImage(file: File, maxWidth = 800, quality = 0.8): Promise
           } else {
             reject(new Error('Canvas compression failed'))
           }
-        }, 'image/webp', quality)
+        }, 'image/jpeg', quality)
       }
       img.src = e.target!.result as string
     }
@@ -211,14 +211,14 @@ export default function MarketingPage() {
       // If mediaMode is upload and there is a mediaFile, upload it to R2 first
       if (mediaMode === 'upload' && mediaFile) {
         const { uploadUrl, publicUrl } = await getPresignedUploadUrl(
-          'flyer.webp',
-          'image/webp',
+          'flyer.jpg',
+          'image/jpeg',
           'marketing'
         )
 
         const uploadRes = await fetch(uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': 'image/webp' },
+          headers: { 'Content-Type': 'image/jpeg' },
           body: mediaFile
         })
 
