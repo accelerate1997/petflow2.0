@@ -103,7 +103,10 @@ export async function previewPetroChat(
       return { success: false, error: data.error || 'Failed to generate preview chat response.' };
     }
   } catch (error: any) {
-    console.error('previewPetroChat error:', error);
-    return { success: false, error: error.message || 'Failed to connect to agent server.' };
+    console.error('previewPetroChat error details:', error);
+    if (error.cause) {
+      console.error('previewPetroChat error cause:', error.cause);
+    }
+    return { success: false, error: `${error.message}${error.cause ? ' - ' + error.cause.message : ''}` || 'Failed to connect to agent server.' };
   }
 }
